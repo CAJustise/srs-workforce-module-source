@@ -1271,12 +1271,59 @@ const Dashboard: React.FC = () => {
     setShowPtoRequestForm(false);
   };
 
+  const adjustMyPtoBalance = async (deltaHours: number) => {
+    if (!myEmployee || !Number.isFinite(deltaHours) || deltaHours === 0) return;
+
+    const accruedHours = Number(myPtoBalance?.accrued_hours || 80);
+    const currentUsedHours = Number(myPtoBalance?.used_hours || 0);
+    const nextUsedHours = Math.max(0, currentUsedHours + deltaHours);
+    const nextAvailableHours = Math.max(0, accruedHours - nextUsedHours);
+
+    if (myPtoBalance?.id) {
+      const { error } = await supabase
+        .from('workforce_pto_balances')
+        .update({
+          used_hours: nextUsedHours,
+          available_hours: nextAvailableHours,
+          pto_unit: myPtoUnit,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', myPtoBalance.id);
+      if (error) throw error;
+      return;
+    }
+
+    if (nextUsedHours <= 0) return;
+
+    const { error } = await supabase.from('workforce_pto_balances').insert([
+      {
+        employee_id: myEmployee.id,
+        accrued_hours: accruedHours,
+        used_hours: nextUsedHours,
+        available_hours: nextAvailableHours,
+        pto_unit: myPtoUnit,
+        updated_at: new Date().toISOString(),
+      },
+    ]);
+    if (error) throw error;
+  };
+
   const saveMyTimeOffRequest = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!myEmployee) {
       alert('Your login is not linked to an employee profile yet.');
       return;
     }
+
+    const existing =
+      editingPtoRequestId
+        ? timeOffRequests.find((request) => request.id === editingPtoRequestId && request.employee_id === myEmployee.id) || null
+        : null;
+    if (editingPtoRequestId && !existing) {
+      alert('You can only edit your own request.');
+      return;
+    }
+
     if (!ptoRequestDraft.start_date || !ptoRequestDraft.end_date) {
       alert('Start and end dates are required.');
       return;
@@ -1303,7 +1350,14 @@ const Dashboard: React.FC = () => {
     }
 
     const requestType = String(ptoRequestDraft.request_type || 'pto').toLowerCase();
-    if (requestType === 'pto' && requestHours > Number(myPtoBalance?.available_hours || 0)) {
+    const approvedPtoHoursBeingEdited =
+      existing &&
+      normalizeTimeOffStatus(existing.status) === 'approved' &&
+      String(existing.request_type || '').toLowerCase() === 'pto'
+        ? Number(existing.hours || 0)
+        : 0;
+    const effectiveAvailableHours = Number(myPtoBalance?.available_hours || 0) + approvedPtoHoursBeingEdited;
+    if (requestType === 'pto' && requestHours > effectiveAvailableHours) {
       alert('Requested PTO exceeds your available balance.');
       return;
     }
@@ -1339,25 +1393,19 @@ const Dashboard: React.FC = () => {
     setSavingAction(true);
     try {
       if (editingPtoRequestId) {
-        const existing = timeOffRequests.find((request) => request.id === editingPtoRequestId);
-        if (!existing || existing.employee_id !== myEmployee.id) {
-          throw new Error('You can only edit your own request.');
-        }
-
-        const nextStatus =
-          normalizeTimeOffStatus(existing.status) === 'approved'
-            ? 'pending'
-            : normalizeTimeOffStatus(existing.status);
-
         const { error } = await supabase
           .from('workforce_time_off_requests')
           .update({
             ...payload,
-            status: nextStatus,
+            status: 'pending',
           })
           .eq('id', editingPtoRequestId)
           .eq('employee_id', myEmployee.id);
         if (error) throw error;
+
+        if (approvedPtoHoursBeingEdited > 0) {
+          await adjustMyPtoBalance(-approvedPtoHoursBeingEdited);
+        }
       } else {
         const { error } = await supabase.from('workforce_time_off_requests').insert([
           {
@@ -1389,12 +1437,22 @@ const Dashboard: React.FC = () => {
 
     setSavingAction(true);
     try {
+      const approvedPtoHoursBeingDeleted =
+        normalizeTimeOffStatus(request.status) === 'approved' &&
+        String(request.request_type || '').toLowerCase() === 'pto'
+          ? Number(request.hours || 0)
+          : 0;
+
       const { error } = await supabase
         .from('workforce_time_off_requests')
         .delete()
         .eq('id', request.id)
         .eq('employee_id', myEmployee.id);
       if (error) throw error;
+
+      if (approvedPtoHoursBeingDeleted > 0) {
+        await adjustMyPtoBalance(-approvedPtoHoursBeingDeleted);
+      }
 
       if (editingPtoRequestId === request.id) {
         cancelEditMyTimeOffRequest();
