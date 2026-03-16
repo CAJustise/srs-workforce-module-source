@@ -136,6 +136,26 @@ interface WorkforceCompanyHoliday {
   active?: boolean;
 }
 
+interface WorkforceTimeOffRequest {
+  id: string;
+  employee_id: string;
+  request_type: 'sick' | 'day_off' | 'pto' | string;
+  start_date: string;
+  end_date: string;
+  hours?: number;
+  status?: 'pending' | 'approved' | 'denied' | string;
+  notes?: string;
+  created_at?: string;
+}
+
+interface WorkforceTimeOffBlock {
+  id: string;
+  start_date: string;
+  end_date: string;
+  reason?: string;
+  active?: boolean;
+}
+
 const MINUTE_MS = 60 * 1000;
 
 const EMPTY_CAPABILITIES: PortalCapabilities = {
@@ -249,7 +269,11 @@ const normalizePtoUnit = (value: unknown): 'hours' | 'days' =>
 const ptoHoursToDisplay = (hoursValue: number, unit: 'hours' | 'days') =>
   unit === 'days' ? hoursValue / PTO_HOURS_PER_DAY : hoursValue;
 
+const ptoDisplayToHours = (displayValue: number, unit: 'hours' | 'days') =>
+  unit === 'days' ? displayValue * PTO_HOURS_PER_DAY : displayValue;
+
 const formatPtoValue = (value: number) => (Number.isFinite(value) ? (Math.round(value * 10) / 10).toFixed(1) : '0.0');
+const formatPtoUnitLabel = (unit: 'hours' | 'days') => (unit === 'days' ? 'Days' : 'Hours');
 
 const normalizeRoleSection = (value: string) => {
   const next = String(value || '').trim();
@@ -344,6 +368,16 @@ const addDays = (value: Date, days: number) => {
   return next;
 };
 
+const rangesOverlap = (startA: string, endA: string, startB: string, endB: string) =>
+  !(endA < startB || endB < startA);
+
+const normalizeTimeOffStatus = (value: unknown): 'pending' | 'approved' | 'denied' => {
+  const next = String(value || 'pending').trim().toLowerCase();
+  if (next === 'approved') return 'approved';
+  if (next === 'denied') return 'denied';
+  return 'pending';
+};
+
 const formatWeekday = (value: Date) =>
   value.toLocaleDateString('en-US', {
     weekday: 'short',
@@ -369,8 +403,11 @@ const Dashboard: React.FC = () => {
   const [tasks, setTasks] = useState<WorkforceTask[]>([]);
   const [ptoBalances, setPtoBalances] = useState<WorkforcePtoBalance[]>([]);
   const [companyHolidays, setCompanyHolidays] = useState<WorkforceCompanyHoliday[]>([]);
+  const [timeOffRequests, setTimeOffRequests] = useState<WorkforceTimeOffRequest[]>([]);
+  const [timeOffBlocks, setTimeOffBlocks] = useState<WorkforceTimeOffBlock[]>([]);
   const [showLogEntryForm, setShowLogEntryForm] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
+  const [showPtoRequestForm, setShowPtoRequestForm] = useState(false);
   const [weeklyScheduleOffset, setWeeklyScheduleOffset] = useState(0);
   const [scheduleTimeDisplayMode, setScheduleTimeDisplayMode] = useState<ScheduleTimeDisplayMode>(() =>
     readScheduleTimeDisplayMode(),
@@ -396,6 +433,13 @@ const Dashboard: React.FC = () => {
     due_time: '18:00',
     critical: false,
   });
+  const [ptoRequestDraft, setPtoRequestDraft] = useState({
+    request_type: 'day_off',
+    start_date: new Date().toISOString().slice(0, 10),
+    end_date: new Date().toISOString().slice(0, 10),
+    amount: '',
+    notes: '',
+  });
   const rollingTaskForwardRef = useRef(false);
   const localScheduleTimeZone = useMemo(() => getScheduleLocalTimeZone(), []);
 
@@ -417,6 +461,8 @@ const Dashboard: React.FC = () => {
         tasksRes,
         ptoBalancesRes,
         companyHolidaysRes,
+        timeOffRequestsRes,
+        timeOffBlocksRes,
       ] = await Promise.all([
         supabase.from('workforce_shifts').select('*').order('start_time'),
         supabase.from('workforce_roles').select('*').order('name'),
@@ -429,6 +475,8 @@ const Dashboard: React.FC = () => {
         supabase.from('workforce_tasks').select('*').order('due_time'),
         supabase.from('workforce_pto_balances').select('*').order('updated_at', { ascending: false }),
         supabase.from('workforce_company_holidays').select('*').order('holiday_date'),
+        supabase.from('workforce_time_off_requests').select('*').order('start_date'),
+        supabase.from('workforce_time_off_blocks').select('*').order('start_date'),
       ]);
 
       setCapabilities(nextCapabilities);
@@ -443,6 +491,8 @@ const Dashboard: React.FC = () => {
       setTasks((tasksRes.data as WorkforceTask[]) || []);
       setPtoBalances((ptoBalancesRes.data as WorkforcePtoBalance[]) || []);
       setCompanyHolidays((companyHolidaysRes.data as WorkforceCompanyHoliday[]) || []);
+      setTimeOffRequests((timeOffRequestsRes.data as WorkforceTimeOffRequest[]) || []);
+      setTimeOffBlocks((timeOffBlocksRes.data as WorkforceTimeOffBlock[]) || []);
       setCurrentUserName(teamMember?.name || userEmail || 'Manager');
       setIsSupervisorProfile(Boolean(teamMember?.can_manage_schedule));
     },
@@ -704,20 +754,48 @@ const Dashboard: React.FC = () => {
     [myEmployee?.pto_unit, myPtoBalance?.pto_unit],
   );
 
+  useEffect(() => {
+    setPtoRequestDraft((current) => {
+      if (current.amount) return current;
+      return {
+        ...current,
+        amount: myPtoUnit === 'days' ? '1' : '8',
+      };
+    });
+  }, [myPtoUnit]);
+
   const myPtoAvailableDisplay = useMemo(
     () => ptoHoursToDisplay(Number(myPtoBalance?.available_hours || 0), myPtoUnit),
     [myPtoBalance?.available_hours, myPtoUnit],
   );
 
-  const upcomingCompanyHolidays = useMemo(
+  const activeTimeOffBlocks = useMemo(
+    () =>
+      timeOffBlocks
+        .filter((block) => block.active !== false)
+        .slice()
+        .sort((a, b) => a.start_date.localeCompare(b.start_date)),
+    [timeOffBlocks],
+  );
+
+  const myUpcomingTimeOffRequests = useMemo(() => {
+    if (!myEmployee) return [];
+    return timeOffRequests
+      .filter((request) => request.employee_id === myEmployee.id && request.end_date >= todayKey)
+      .slice()
+      .sort((a, b) => `${a.start_date}${a.created_at || ''}`.localeCompare(`${b.start_date}${b.created_at || ''}`));
+  }, [myEmployee, timeOffRequests, todayKey]);
+
+  const activeCompanyHolidays = useMemo(
     () =>
       companyHolidays
         .filter((holiday) => holiday.active !== false && holiday.holiday_date >= todayKey)
         .slice()
-        .sort((a, b) => a.holiday_date.localeCompare(b.holiday_date))
-        .slice(0, 6),
+        .sort((a, b) => a.holiday_date.localeCompare(b.holiday_date)),
     [companyHolidays, todayKey],
   );
+
+  const upcomingCompanyHolidays = useMemo(() => activeCompanyHolidays.slice(0, 6), [activeCompanyHolidays]);
 
   const nextCompanyHoliday = useMemo(() => upcomingCompanyHolidays[0] || null, [upcomingCompanyHolidays]);
 
@@ -1073,6 +1151,88 @@ const Dashboard: React.FC = () => {
       await refreshAfterAction();
     } catch (error) {
       alert(`Failed to create task: ${(error as Error).message}`);
+    } finally {
+      setSavingAction(false);
+    }
+  };
+
+  const createMyTimeOffRequest = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!myEmployee) {
+      alert('Your login is not linked to an employee profile yet.');
+      return;
+    }
+    if (!ptoRequestDraft.start_date || !ptoRequestDraft.end_date) {
+      alert('Start and end dates are required.');
+      return;
+    }
+    if (ptoRequestDraft.end_date < ptoRequestDraft.start_date) {
+      alert('End date cannot be before start date.');
+      return;
+    }
+    if (ptoRequestDraft.start_date < todayKey) {
+      alert('Only current or future dates can be requested from Today.');
+      return;
+    }
+
+    const requestHours = ptoDisplayToHours(Number(ptoRequestDraft.amount || 0), myPtoUnit);
+    if (!Number.isFinite(requestHours) || requestHours <= 0) {
+      alert(`Enter a valid ${formatPtoUnitLabel(myPtoUnit).toLowerCase()} amount.`);
+      return;
+    }
+
+    const requestType = String(ptoRequestDraft.request_type || 'day_off').toLowerCase();
+    if (requestType === 'pto' && requestHours > Number(myPtoBalance?.available_hours || 0)) {
+      alert('Requested PTO exceeds your available balance.');
+      return;
+    }
+
+    if (requestType !== 'sick') {
+      const overlappingBlock = activeTimeOffBlocks.find((block) =>
+        rangesOverlap(ptoRequestDraft.start_date, ptoRequestDraft.end_date, block.start_date, block.end_date),
+      );
+      if (overlappingBlock) {
+        alert(
+          `Requests are blocked for ${overlappingBlock.start_date} to ${overlappingBlock.end_date}${overlappingBlock.reason ? ` (${overlappingBlock.reason})` : ''}.`,
+        );
+        return;
+      }
+
+      const overlappingHoliday = activeCompanyHolidays.find((holiday) =>
+        rangesOverlap(ptoRequestDraft.start_date, ptoRequestDraft.end_date, holiday.holiday_date, holiday.holiday_date),
+      );
+      if (overlappingHoliday) {
+        alert(`"${overlappingHoliday.name}" is a company holiday. Request is not needed for that date.`);
+        return;
+      }
+    }
+
+    setSavingAction(true);
+    try {
+      const { error } = await supabase.from('workforce_time_off_requests').insert([
+        {
+          employee_id: myEmployee.id,
+          request_type: requestType,
+          start_date: ptoRequestDraft.start_date,
+          end_date: ptoRequestDraft.end_date,
+          hours: requestHours,
+          status: 'pending',
+          notes: ptoRequestDraft.notes.trim() || null,
+        },
+      ]);
+      if (error) throw error;
+
+      setShowPtoRequestForm(false);
+      setPtoRequestDraft({
+        request_type: 'day_off',
+        start_date: new Date().toISOString().slice(0, 10),
+        end_date: new Date().toISOString().slice(0, 10),
+        amount: myPtoUnit === 'days' ? '1' : '8',
+        notes: '',
+      });
+      await refreshAfterAction();
+    } catch (error) {
+      alert(`Failed to submit request: ${(error as Error).message}`);
     } finally {
       setSavingAction(false);
     }
@@ -1595,19 +1755,115 @@ const Dashboard: React.FC = () => {
               <div className="bg-white rounded-lg shadow p-6">
                 <h2 className="text-xl font-display font-bold text-gray-900 mb-3 flex items-center gap-2">
                   <CalendarDays className="h-5 w-5 text-ocean-600" />
-                  Company Holidays
+                  PTO Requests
                 </h2>
-                <div className="space-y-2">
-                  {upcomingCompanyHolidays.map((holiday) => (
-                    <div key={holiday.id} className="border border-gray-100 rounded-lg p-3">
-                      <div className="text-sm font-medium text-gray-900">
-                        {formatDateLabel(holiday.holiday_date)} - {holiday.name}
-                      </div>
-                      {holiday.notes && <div className="text-xs text-gray-500 mt-1">{holiday.notes}</div>}
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="text-xs text-gray-500">Future requests only</div>
+                  {myEmployee && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPtoRequestForm((current) => !current)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 border border-ocean-200 rounded-md text-ocean-700 hover:bg-ocean-50 text-sm"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Request More Time
+                    </button>
+                  )}
+                </div>
+
+                {!myEmployee && (
+                  <div className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-lg p-3">
+                    Link this login to an employee profile to request time off.
+                  </div>
+                )}
+
+                {showPtoRequestForm && myEmployee && (
+                  <form onSubmit={(event) => void createMyTimeOffRequest(event)} className="mb-3 grid gap-2 bg-gray-50 border border-gray-100 rounded-lg p-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        value={ptoRequestDraft.request_type}
+                        onChange={(event) => setPtoRequestDraft((current) => ({ ...current, request_type: event.target.value }))}
+                        className="px-3 py-2 border rounded-lg"
+                      >
+                        <option value="day_off">Day Off</option>
+                        <option value="sick">Sick Time</option>
+                        <option value="pto">PTO</option>
+                      </select>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        value={ptoRequestDraft.amount}
+                        onChange={(event) => setPtoRequestDraft((current) => ({ ...current, amount: event.target.value }))}
+                        className="px-3 py-2 border rounded-lg"
+                        placeholder={formatPtoUnitLabel(myPtoUnit)}
+                        title={`Amount in ${formatPtoUnitLabel(myPtoUnit).toLowerCase()}`}
+                      />
                     </div>
-                  ))}
-                  {!upcomingCompanyHolidays.length && (
-                    <div className="text-sm text-gray-500">No upcoming company holidays have been added yet.</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="date"
+                        value={ptoRequestDraft.start_date}
+                        onChange={(event) => setPtoRequestDraft((current) => ({ ...current, start_date: event.target.value }))}
+                        className="px-3 py-2 border rounded-lg"
+                      />
+                      <input
+                        type="date"
+                        value={ptoRequestDraft.end_date}
+                        onChange={(event) => setPtoRequestDraft((current) => ({ ...current, end_date: event.target.value }))}
+                        className="px-3 py-2 border rounded-lg"
+                      />
+                    </div>
+                    <input
+                      value={ptoRequestDraft.notes}
+                      onChange={(event) => setPtoRequestDraft((current) => ({ ...current, notes: event.target.value }))}
+                      className="px-3 py-2 border rounded-lg"
+                      placeholder="Notes (optional)"
+                    />
+                    <button
+                      type="submit"
+                      disabled={savingAction}
+                      className="px-3 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 disabled:opacity-60"
+                    >
+                      Submit Request
+                    </button>
+                  </form>
+                )}
+
+                <div className="space-y-2">
+                  {myUpcomingTimeOffRequests.map((request) => {
+                    const status = normalizeTimeOffStatus(request.status);
+                    const toneClass =
+                      status === 'approved'
+                        ? 'bg-green-100 text-green-800'
+                        : status === 'denied'
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-amber-100 text-amber-800';
+                    return (
+                      <div key={request.id} className="border border-gray-100 rounded-lg p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900 capitalize">
+                              {String(request.request_type || 'day_off').replace('_', ' ')}
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {formatDateLabel(request.start_date)} to {formatDateLabel(request.end_date)}
+                            </div>
+                            <div className="text-xs text-gray-600 mt-0.5">
+                              {formatPtoValue(ptoHoursToDisplay(Number(request.hours || 0), myPtoUnit))}
+                              {myPtoUnit === 'days' ? 'd' : 'h'}
+                            </div>
+                            {request.notes && <div className="text-xs text-gray-500 mt-1">{request.notes}</div>}
+                          </div>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium uppercase ${toneClass}`}>
+                            {status}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {!myUpcomingTimeOffRequests.length && (
+                    <div className="text-sm text-gray-500">No future requests submitted yet.</div>
                   )}
                 </div>
               </div>
@@ -1697,6 +1953,26 @@ const Dashboard: React.FC = () => {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-display font-bold text-gray-900 mb-3 flex items-center gap-2">
+                <CalendarDays className="h-5 w-5 text-ocean-600" />
+                Company Holidays
+              </h2>
+              <div className="space-y-2">
+                {upcomingCompanyHolidays.map((holiday) => (
+                  <div key={holiday.id} className="border border-gray-100 rounded-lg p-3">
+                    <div className="text-sm font-medium text-gray-900">
+                      {formatDateLabel(holiday.holiday_date)} - {holiday.name}
+                    </div>
+                    {holiday.notes && <div className="text-xs text-gray-500 mt-1">{holiday.notes}</div>}
+                  </div>
+                ))}
+                {!upcomingCompanyHolidays.length && (
+                  <div className="text-sm text-gray-500">No upcoming company holidays have been added yet.</div>
+                )}
               </div>
             </div>
           </section>

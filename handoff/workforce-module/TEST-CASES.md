@@ -25,6 +25,11 @@ Use this checklist as definition of done for implementation.
    - start/end time
    - total break duration
 7. User cannot end a break before minimum break length is reached.
+8. PTO Requests panel appears where the right-side card is shown next to Today’s Schedule.
+9. Team member can submit a PTO/day-off/sick request from Today.
+10. Today PTO list shows only current/future requests (no past requests).
+11. Each request shows status (`pending`, `approved`, `denied`).
+12. Company Holidays section is below Weekly Schedule.
 
 ## C. Task Board
 
@@ -43,6 +48,8 @@ Use this checklist as definition of done for implementation.
 2. Clock log edits are available for the past 30 days (supervisor only).
 3. Role order affects schedule order.
 4. Company holidays can be managed.
+5. Time Off + PTO uses a status dropdown (`pending`, `approved`, `denied`) for each request.
+6. Time Off + PTO no longer shows a request-creation button/form.
 
 ## E. Log Archive
 

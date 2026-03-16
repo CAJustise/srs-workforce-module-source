@@ -399,8 +399,6 @@ const ptoHoursToDisplay = (hoursValue: number, unit: 'hours' | 'days') =>
 const ptoDisplayToHours = (displayValue: number, unit: 'hours' | 'days') =>
   unit === 'days' ? displayValue * PTO_HOURS_PER_DAY : displayValue;
 
-const formatPtoUnitLabel = (unit: 'hours' | 'days') => (unit === 'days' ? 'Days' : 'Hours');
-
 const toJsonText = (value: unknown) => {
   if (typeof value === 'string') return value;
   if (value === null || value === undefined) return '';
@@ -414,15 +412,6 @@ const toJsonText = (value: unknown) => {
 const isTaskClosed = (task: WorkforceTask) => {
   const status = String(task.completion_status || 'open').toLowerCase();
   return status === 'completed' || status === 'verified' || status === 'closed';
-};
-
-const rangesOverlap = (startA: string, endA: string, startB: string, endB: string) => {
-  const startAMs = fromDateKey(startA).getTime();
-  const endAMs = fromDateKey(endA).getTime();
-  const startBMs = fromDateKey(startB).getTime();
-  const endBMs = fromDateKey(endB).getTime();
-  if ([startAMs, endAMs, startBMs, endBMs].some((value) => Number.isNaN(value))) return false;
-  return startAMs <= endBMs && startBMs <= endAMs;
 };
 
 const formatDecimalInput = (value: number) => {
@@ -534,7 +523,6 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
   const [showShiftForm, setShowShiftForm] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showLogForm, setShowLogForm] = useState(false);
-  const [showTimeOffForm, setShowTimeOffForm] = useState(false);
   const [showRoleForm, setShowRoleForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<WorkforceEmployee | null>(null);
   const [employeeEditorMode, setEmployeeEditorMode] = useState<'create' | 'edit'>('edit');
@@ -588,14 +576,6 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
     message: '',
   });
 
-  const [timeOffDraft, setTimeOffDraft] = useState({
-    employee_id: '',
-    request_type: 'day_off',
-    start_date: new Date().toISOString().slice(0, 10),
-    end_date: new Date().toISOString().slice(0, 10),
-    hours: '8',
-    notes: '',
-  });
   const [timeOffBlockDraft, setTimeOffBlockDraft] = useState({
     start_date: new Date().toISOString().slice(0, 10),
     end_date: new Date().toISOString().slice(0, 10),
@@ -817,15 +797,6 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
   }, [roles, stations, taskDraft.assigned_role_id, taskDraft.station_id]);
 
   useEffect(() => {
-    if (!timeOffDraft.employee_id && employees.length > 0) {
-      setTimeOffDraft((current) => ({
-        ...current,
-        employee_id: employees[0].id,
-      }));
-    }
-  }, [employees, timeOffDraft.employee_id]);
-
-  useEffect(() => {
     if (!selectedTemplateId && scheduleTemplates.length > 0) {
       setSelectedTemplateId(scheduleTemplates[0].id);
     }
@@ -993,8 +964,6 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
   }, [employees, ptoBalances]);
 
   const getEmployeePtoUnit = (employeeId: string) => ptoUnitByEmployeeId[employeeId] || 'hours';
-
-  const selectedTimeOffEmployeeUnit = getEmployeePtoUnit(timeOffDraft.employee_id);
 
   const rolesForSelectedShiftEmployee = useMemo(() => {
     if (!shiftDraft.employee_id) return orderedRoles;
@@ -2800,95 +2769,13 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
     }
   };
 
-  const createTimeOffRequest = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!timeOffDraft.employee_id) {
-      alert('Select an employee for this request.');
-      return;
-    }
-
-    if (!timeOffDraft.start_date || !timeOffDraft.end_date) {
-      alert('Start and end dates are required.');
-      return;
-    }
-
-    if (timeOffDraft.end_date < timeOffDraft.start_date) {
-      alert('End date cannot be before start date.');
-      return;
-    }
-
-    const employeePtoUnit = getEmployeePtoUnit(timeOffDraft.employee_id);
-    const requestHours = ptoDisplayToHours(Number(timeOffDraft.hours || 0), employeePtoUnit);
-    if (!Number.isFinite(requestHours) || requestHours <= 0) {
-      alert(`Enter a valid ${formatPtoUnitLabel(employeePtoUnit).toLowerCase()} amount.`);
-      return;
-    }
-
-    const requestType = String(timeOffDraft.request_type || '').toLowerCase();
-    if (requestType !== 'sick') {
-      const overlappingBlock = activeTimeOffBlocks.find((block) =>
-        rangesOverlap(timeOffDraft.start_date, timeOffDraft.end_date, block.start_date, block.end_date),
-      );
-      if (overlappingBlock) {
-        alert(
-          `Requests are blocked for ${overlappingBlock.start_date} to ${overlappingBlock.end_date}${overlappingBlock.reason ? ` (${overlappingBlock.reason})` : ''}.`,
-        );
-        return;
-      }
-
-      const overlappingHoliday = activeCompanyHolidays.find((holiday) =>
-        rangesOverlap(timeOffDraft.start_date, timeOffDraft.end_date, holiday.holiday_date, holiday.holiday_date),
-      );
-      if (overlappingHoliday) {
-        alert(`"${overlappingHoliday.name}" is a company holiday. Request is not needed for that date.`);
-        return;
-      }
-    }
-
-    setSaving(true);
-    try {
-      const payload = {
-        employee_id: timeOffDraft.employee_id,
-        request_type: timeOffDraft.request_type,
-        start_date: timeOffDraft.start_date,
-        end_date: timeOffDraft.end_date,
-        hours: requestHours,
-        status: 'pending',
-        notes: timeOffDraft.notes.trim(),
-      };
-
-      const { data: requestRow, error } = await supabase
-        .from('workforce_time_off_requests')
-        .insert([payload])
-        .select('*')
-        .single();
-
-      if (error) throw error;
-
-      await recordEvent('TIME_OFF_REQUEST_CREATED', 'time_off_request', String(requestRow.id), {
-        employee_id: payload.employee_id,
-        request_type: payload.request_type,
-      });
-
-      await fetchAll();
-      setShowTimeOffForm(false);
-      setTimeOffDraft((current) => ({
-        ...current,
-        request_type: 'day_off',
-        hours: getEmployeePtoUnit(current.employee_id) === 'days' ? '1' : '8',
-        notes: '',
-      }));
-    } catch (error) {
-      alert(`Failed to create time-off request: ${(error as Error).message}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const updateTimeOffStatus = async (
     request: WorkforceTimeOffRequest,
     status: 'approved' | 'denied' | 'pending',
   ) => {
+    const previousStatus = String(request.status || 'pending').toLowerCase();
+    if (previousStatus === status) return;
+
     setSaving(true);
     try {
       const { error } = await supabase
@@ -2898,15 +2785,25 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
 
       if (error) throw error;
 
-      if (
-        status === 'approved' &&
-        String(request.request_type || '').toLowerCase() === 'pto' &&
-        String(request.status || '').toLowerCase() !== 'approved'
-      ) {
+      if (String(request.request_type || '').toLowerCase() === 'pto') {
         const pto = ptoByEmployeeId[request.employee_id];
         const requestHours = Number(request.hours || 0);
+        const deltaHours =
+          previousStatus !== 'approved' && status === 'approved'
+            ? requestHours
+            : previousStatus === 'approved' && status !== 'approved'
+              ? -requestHours
+              : 0;
+        if (deltaHours === 0) {
+          await recordEvent('TIME_OFF_REQUEST_STATUS_UPDATED', 'time_off_request', request.id, {
+            status,
+          });
+          await fetchAll();
+          return;
+        }
+
         const accrued = Number(pto?.accrued_hours || 0);
-        const used = Number(pto?.used_hours || 0) + requestHours;
+        const used = Math.max(0, Number(pto?.used_hours || 0) + deltaHours);
         const available = Math.max(0, accrued - used);
         const ptoUnit = getEmployeePtoUnit(request.employee_id);
 
@@ -2928,8 +2825,8 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
               {
                 employee_id: request.employee_id,
                 accrued_hours: 80,
-                used_hours: requestHours,
-                available_hours: Math.max(0, 80 - requestHours),
+                used_hours: Math.max(0, deltaHours),
+                available_hours: Math.max(0, 80 - Math.max(0, deltaHours)),
                 pto_unit: ptoUnit,
                 updated_at: new Date().toISOString(),
               },
@@ -5224,88 +5121,7 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
               <h2 className="text-xl font-display font-bold text-gray-900">Time Off + PTO</h2>
               <p className="text-sm text-gray-500">Track sick time, day off requests, and PTO balances.</p>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowTimeOffForm((current) => !current)}
-              className="inline-flex items-center gap-2 px-3 py-2 border border-ocean-200 text-ocean-700 rounded-lg hover:bg-ocean-50"
-            >
-              <Plus className="h-4 w-4" />
-              Add Request
-            </button>
           </div>
-
-          {showTimeOffForm && (
-            <form onSubmit={(event) => void createTimeOffRequest(event)} className="grid md:grid-cols-7 gap-3 bg-gray-50 p-4 rounded-lg">
-              <select
-                value={timeOffDraft.employee_id}
-                onChange={(event) =>
-                  setTimeOffDraft((current) => {
-                    const nextEmployeeId = event.target.value;
-                    const currentUnit = getEmployeePtoUnit(current.employee_id);
-                    const nextUnit = getEmployeePtoUnit(nextEmployeeId);
-                    const currentDisplayValue = Number(current.hours || 0);
-                    const hoursInBase = ptoDisplayToHours(currentDisplayValue, currentUnit);
-                    return {
-                      ...current,
-                      employee_id: nextEmployeeId,
-                      hours: formatDecimalInput(ptoHoursToDisplay(hoursInBase, nextUnit)),
-                    };
-                  })
-                }
-                className="px-3 py-2 border rounded-lg"
-              >
-                {employees.map((employee) => (
-                  <option key={employee.id} value={employee.id}>
-                    {employee.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={timeOffDraft.request_type}
-                onChange={(event) => setTimeOffDraft((current) => ({ ...current, request_type: event.target.value }))}
-                className="px-3 py-2 border rounded-lg"
-              >
-                <option value="day_off">Day Off</option>
-                <option value="sick">Sick Time</option>
-                <option value="pto">PTO</option>
-              </select>
-              <input
-                type="date"
-                value={timeOffDraft.start_date}
-                onChange={(event) => setTimeOffDraft((current) => ({ ...current, start_date: event.target.value }))}
-                className="px-3 py-2 border rounded-lg"
-              />
-              <input
-                type="date"
-                value={timeOffDraft.end_date}
-                onChange={(event) => setTimeOffDraft((current) => ({ ...current, end_date: event.target.value }))}
-                className="px-3 py-2 border rounded-lg"
-              />
-              <input
-                type="number"
-                min={0}
-                step={0.01}
-                value={timeOffDraft.hours}
-                onChange={(event) => setTimeOffDraft((current) => ({ ...current, hours: event.target.value }))}
-                className="px-3 py-2 border rounded-lg"
-                placeholder={formatPtoUnitLabel(selectedTimeOffEmployeeUnit)}
-                title={`Amount in ${formatPtoUnitLabel(selectedTimeOffEmployeeUnit).toLowerCase()}`}
-              />
-              <input
-                value={timeOffDraft.notes}
-                onChange={(event) => setTimeOffDraft((current) => ({ ...current, notes: event.target.value }))}
-                className="px-3 py-2 border rounded-lg"
-                placeholder="Notes"
-              />
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-3 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 disabled:opacity-60"
-              >
-                Save Request
-              </button>
-            </form>
-          )}
 
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -5316,7 +5132,7 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Dates</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Amount</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Update Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -5340,24 +5156,22 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
                           <span className="capitalize text-gray-700">{request.status || 'pending'}</span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <div className="inline-flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => void updateTimeOffStatus(request, 'approved')}
-                              disabled={saving}
-                              className="px-2 py-1 text-xs rounded-md bg-green-100 text-green-800 hover:bg-green-200 disabled:opacity-60"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void updateTimeOffStatus(request, 'denied')}
-                              disabled={saving}
-                              className="px-2 py-1 text-xs rounded-md bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-60"
-                            >
-                              Deny
-                            </button>
-                          </div>
+                          <select
+                            value={String(request.status || 'pending').toLowerCase()}
+                            onChange={(event) =>
+                              void updateTimeOffStatus(
+                                request,
+                                event.target.value as 'pending' | 'approved' | 'denied',
+                              )
+                            }
+                            disabled={saving}
+                            className="px-2 py-1.5 text-xs rounded-md border border-gray-200 bg-white text-gray-700"
+                            title="Update request status"
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="denied">Denied</option>
+                          </select>
                         </td>
                       </tr>
                     );

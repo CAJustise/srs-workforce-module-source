@@ -60,15 +60,16 @@ For production/shared environments, set:
   - Break history showing start/end and total break duration
   - Clock Status showing clock-in time plus worked duration (net of unpaid breaks)
   - Today’s Schedule by Department
+  - PTO Requests card (request button + future request list with approval status)
   - Weekly Schedule (this week + 3 weeks forward)
+  - Company Holidays (shown below Weekly Schedule)
   - Task Board (grouped by assignee)
   - Daily Activity Log
-  - Company Holidays
   - Timezone view control (`View by time zone`): US timezone dropdown + Local
 - Team Members:
   - Scheduler (week/day views)
   - Clock In Logs (30-day adjustments)
-  - Time Off + PTO
+  - Time Off + PTO with request status review dropdown (`pending`, `approved`, `denied`)
   - Team member profiles + documents
   - Role library and role ordering
 - Log Archive:

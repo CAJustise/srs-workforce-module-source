@@ -32,15 +32,20 @@ Use the handoff pack files in this folder:
 - Today dashboard must include:
   - My Time Clock
   - Today’s Schedule by Department
+  - PTO Requests panel (request button + future requests + status badges)
   - Weekly Schedule
+  - Company Holidays (positioned below Weekly Schedule)
   - Task Board
   - Daily Activity Log
-  - Company Holidays
 - My Time Clock behavior:
   - Show clock-in time and worked duration in Clock Status
   - Worked duration must subtract unpaid break time
   - Break history must display start/end and total duration
   - Prevent ending a break before its configured minimum duration
+- PTO request behavior:
+  - Team member can submit own request from Today
+  - List only current/future requests (hide past requests)
+  - Show request status (`pending`, `approved`, `denied`)
 - Task Board behavior:
   - Group tasks by assignee
   - Overdue open tasks = red
@@ -52,6 +57,9 @@ Use the handoff pack files in this folder:
   - Label `View by time zone`
   - US timezone dropdown + Local button
   - Must update Today schedule and Weekly schedule time display
+- Team Members Time Off + PTO behavior:
+  - Remove request-creation button/form
+  - Add per-row status dropdown to set `pending`, `approved`, `denied`
 - Team Members and Log Archive pages must be separate tabs/routes.
 
 ## Implementation Notes
