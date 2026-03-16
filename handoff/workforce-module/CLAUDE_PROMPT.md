@@ -46,6 +46,9 @@ Use the handoff pack files in this folder:
   - Team member can submit own request from Today
   - List only current/future requests (hide past requests)
   - Show request status (`pending`, `approved`, `denied`)
+  - Request amount is derived from selected start/end dates (no manual amount input)
+  - Request type options are only `PTO` and `Sick`
+  - Selecting start date should auto-set end date to the same date initially
 - Task Board behavior:
   - Group tasks by assignee
   - Overdue open tasks = red

@@ -139,7 +139,7 @@ interface WorkforceCompanyHoliday {
 interface WorkforceTimeOffRequest {
   id: string;
   employee_id: string;
-  request_type: 'sick' | 'day_off' | 'pto' | string;
+  request_type: 'sick' | 'pto' | string;
   start_date: string;
   end_date: string;
   hours?: number;
@@ -371,6 +371,29 @@ const addDays = (value: Date, days: number) => {
 const rangesOverlap = (startA: string, endA: string, startB: string, endB: string) =>
   !(endA < startB || endB < startA);
 
+const dateKeyToUtcDay = (value: string) => {
+  const [yearRaw, monthRaw, dayRaw] = value.split('-');
+  const year = Number(yearRaw);
+  const month = Number(monthRaw);
+  const day = Number(dayRaw);
+  if (!year || !month || !day) return null;
+  return Math.floor(Date.UTC(year, month - 1, day) / (24 * 60 * 60 * 1000));
+};
+
+const getInclusiveDateSpanDays = (startDate: string, endDate: string) => {
+  const startDay = dateKeyToUtcDay(startDate);
+  const endDay = dateKeyToUtcDay(endDate);
+  if (startDay === null || endDay === null || endDay < startDay) return 0;
+  return endDay - startDay + 1;
+};
+
+const formatTimeOffTypeLabel = (value: unknown) => {
+  const next = String(value || '').trim().toLowerCase();
+  if (next === 'pto') return 'PTO';
+  if (next === 'sick') return 'Sick';
+  return 'Time Off';
+};
+
 const normalizeTimeOffStatus = (value: unknown): 'pending' | 'approved' | 'denied' => {
   const next = String(value || 'pending').trim().toLowerCase();
   if (next === 'approved') return 'approved';
@@ -434,10 +457,9 @@ const Dashboard: React.FC = () => {
     critical: false,
   });
   const [ptoRequestDraft, setPtoRequestDraft] = useState({
-    request_type: 'day_off',
+    request_type: 'pto',
     start_date: new Date().toISOString().slice(0, 10),
     end_date: new Date().toISOString().slice(0, 10),
-    amount: '',
     notes: '',
   });
   const rollingTaskForwardRef = useRef(false);
@@ -754,19 +776,19 @@ const Dashboard: React.FC = () => {
     [myEmployee?.pto_unit, myPtoBalance?.pto_unit],
   );
 
-  useEffect(() => {
-    setPtoRequestDraft((current) => {
-      if (current.amount) return current;
-      return {
-        ...current,
-        amount: myPtoUnit === 'days' ? '1' : '8',
-      };
-    });
-  }, [myPtoUnit]);
-
   const myPtoAvailableDisplay = useMemo(
     () => ptoHoursToDisplay(Number(myPtoBalance?.available_hours || 0), myPtoUnit),
     [myPtoBalance?.available_hours, myPtoUnit],
+  );
+
+  const draftRequestedDays = useMemo(
+    () => getInclusiveDateSpanDays(ptoRequestDraft.start_date, ptoRequestDraft.end_date),
+    [ptoRequestDraft.end_date, ptoRequestDraft.start_date],
+  );
+
+  const draftRequestedDisplayAmount = useMemo(
+    () => (myPtoUnit === 'days' ? draftRequestedDays : draftRequestedDays * PTO_HOURS_PER_DAY),
+    [draftRequestedDays, myPtoUnit],
   );
 
   const activeTimeOffBlocks = useMemo(
@@ -1175,13 +1197,19 @@ const Dashboard: React.FC = () => {
       return;
     }
 
-    const requestHours = ptoDisplayToHours(Number(ptoRequestDraft.amount || 0), myPtoUnit);
+    const requestedDays = getInclusiveDateSpanDays(ptoRequestDraft.start_date, ptoRequestDraft.end_date);
+    if (requestedDays <= 0) {
+      alert('Select a valid date range.');
+      return;
+    }
+    const requestDisplayAmount = myPtoUnit === 'days' ? requestedDays : requestedDays * PTO_HOURS_PER_DAY;
+    const requestHours = ptoDisplayToHours(requestDisplayAmount, myPtoUnit);
     if (!Number.isFinite(requestHours) || requestHours <= 0) {
-      alert(`Enter a valid ${formatPtoUnitLabel(myPtoUnit).toLowerCase()} amount.`);
+      alert('Could not calculate request amount from selected dates.');
       return;
     }
 
-    const requestType = String(ptoRequestDraft.request_type || 'day_off').toLowerCase();
+    const requestType = String(ptoRequestDraft.request_type || 'pto').toLowerCase();
     if (requestType === 'pto' && requestHours > Number(myPtoBalance?.available_hours || 0)) {
       alert('Requested PTO exceeds your available balance.');
       return;
@@ -1224,10 +1252,9 @@ const Dashboard: React.FC = () => {
 
       setShowPtoRequestForm(false);
       setPtoRequestDraft({
-        request_type: 'day_off',
+        request_type: 'pto',
         start_date: new Date().toISOString().slice(0, 10),
         end_date: new Date().toISOString().slice(0, 10),
-        amount: myPtoUnit === 'days' ? '1' : '8',
         notes: '',
       });
       await refreshAfterAction();
@@ -1785,26 +1812,25 @@ const Dashboard: React.FC = () => {
                         onChange={(event) => setPtoRequestDraft((current) => ({ ...current, request_type: event.target.value }))}
                         className="px-3 py-2 border rounded-lg"
                       >
-                        <option value="day_off">Day Off</option>
                         <option value="sick">Sick Time</option>
                         <option value="pto">PTO</option>
                       </select>
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        value={ptoRequestDraft.amount}
-                        onChange={(event) => setPtoRequestDraft((current) => ({ ...current, amount: event.target.value }))}
-                        className="px-3 py-2 border rounded-lg"
-                        placeholder={formatPtoUnitLabel(myPtoUnit)}
-                        title={`Amount in ${formatPtoUnitLabel(myPtoUnit).toLowerCase()}`}
-                      />
+                      <div className="px-3 py-2 border rounded-lg bg-white text-sm text-gray-700">
+                        {formatPtoUnitLabel(myPtoUnit)} requested: {formatPtoValue(draftRequestedDisplayAmount)}
+                        {myPtoUnit === 'days' ? 'd' : 'h'}
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         type="date"
                         value={ptoRequestDraft.start_date}
-                        onChange={(event) => setPtoRequestDraft((current) => ({ ...current, start_date: event.target.value }))}
+                        onChange={(event) =>
+                          setPtoRequestDraft((current) => ({
+                            ...current,
+                            start_date: event.target.value,
+                            end_date: event.target.value,
+                          }))
+                        }
                         className="px-3 py-2 border rounded-lg"
                       />
                       <input
@@ -1822,7 +1848,7 @@ const Dashboard: React.FC = () => {
                     />
                     <button
                       type="submit"
-                      disabled={savingAction}
+                      disabled={savingAction || draftRequestedDays <= 0}
                       className="px-3 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 disabled:opacity-60"
                     >
                       Submit Request
@@ -1833,6 +1859,13 @@ const Dashboard: React.FC = () => {
                 <div className="space-y-2">
                   {myUpcomingTimeOffRequests.map((request) => {
                     const status = normalizeTimeOffStatus(request.status);
+                    const requestedDays = getInclusiveDateSpanDays(request.start_date, request.end_date);
+                    const displayAmount =
+                      requestedDays > 0
+                        ? myPtoUnit === 'days'
+                          ? requestedDays
+                          : requestedDays * PTO_HOURS_PER_DAY
+                        : ptoHoursToDisplay(Number(request.hours || 0), myPtoUnit);
                     const toneClass =
                       status === 'approved'
                         ? 'bg-green-100 text-green-800'
@@ -1843,14 +1876,12 @@ const Dashboard: React.FC = () => {
                       <div key={request.id} className="border border-gray-100 rounded-lg p-3">
                         <div className="flex items-start justify-between gap-2">
                           <div>
-                            <div className="text-sm font-medium text-gray-900 capitalize">
-                              {String(request.request_type || 'day_off').replace('_', ' ')}
-                            </div>
+                            <div className="text-sm font-medium text-gray-900">{formatTimeOffTypeLabel(request.request_type)}</div>
                             <div className="text-xs text-gray-600">
                               {formatDateLabel(request.start_date)} to {formatDateLabel(request.end_date)}
                             </div>
                             <div className="text-xs text-gray-600 mt-0.5">
-                              {formatPtoValue(ptoHoursToDisplay(Number(request.hours || 0), myPtoUnit))}
+                              {formatPtoValue(displayAmount)}
                               {myPtoUnit === 'days' ? 'd' : 'h'}
                             </div>
                             {request.notes && <div className="text-xs text-gray-500 mt-1">{request.notes}</div>}

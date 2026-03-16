@@ -61,6 +61,8 @@ For production/shared environments, set:
   - Clock Status showing clock-in time plus worked duration (net of unpaid breaks)
   - Today’s Schedule by Department
   - PTO Requests card (request button + future request list with approval status)
+  - PTO request amount auto-calculated from selected date range (no manual amount entry)
+  - PTO request types limited to `PTO` and `Sick`
   - Weekly Schedule (this week + 3 weeks forward)
   - Company Holidays (shown below Weekly Schedule)
   - Task Board (grouped by assignee)

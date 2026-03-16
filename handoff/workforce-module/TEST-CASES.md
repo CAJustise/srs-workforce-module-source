@@ -26,10 +26,13 @@ Use this checklist as definition of done for implementation.
    - total break duration
 7. User cannot end a break before minimum break length is reached.
 8. PTO Requests panel appears where the right-side card is shown next to Today’s Schedule.
-9. Team member can submit a PTO/day-off/sick request from Today.
+9. Team member can submit a PTO/sick request from Today.
 10. Today PTO list shows only current/future requests (no past requests).
 11. Each request shows status (`pending`, `approved`, `denied`).
 12. Company Holidays section is below Weekly Schedule.
+13. PTO request form only includes `PTO` and `Sick` request types.
+14. Requested amount auto-calculates from selected date range.
+15. Selecting start date auto-sets end date to the same date unless edited.
 
 ## C. Task Board
 
