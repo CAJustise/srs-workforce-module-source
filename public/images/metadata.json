@@ -1,0 +1,1154 @@
+{
+  "version": 1,
+  "updated_at": "2026-03-15T05:37:52.962Z",
+  "categories": [
+    {
+      "id": "cocktails",
+      "name": "Cocktails",
+      "description": null
+    },
+    {
+      "id": "cuisine",
+      "name": "Cuisine",
+      "description": null
+    },
+    {
+      "id": "logos",
+      "name": "Logos",
+      "description": null
+    },
+    {
+      "id": "misc",
+      "name": "Misc",
+      "description": null
+    },
+    {
+      "id": "staff",
+      "name": "Staff",
+      "description": null
+    },
+    {
+      "id": "venue",
+      "name": "Venue",
+      "description": null
+    }
+  ],
+  "images": [
+    {
+      "id": "img_0001",
+      "path": "public/images/library/cocktails/aloha-spirit-mai-tai.png",
+      "display_name": "Aloha Spirit Mai Tai",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.573Z",
+      "updated_at": "2026-03-15T05:37:51.574Z"
+    },
+    {
+      "id": "img_0002",
+      "path": "public/images/library/cocktails/break-the-storm-hurricane.png",
+      "display_name": "Break The Storm Hurricane",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.576Z",
+      "updated_at": "2026-03-15T05:37:51.576Z"
+    },
+    {
+      "id": "img_0003",
+      "path": "public/images/library/cocktails/chirping-chi-chi.png",
+      "display_name": "Chirping Chi Chi",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.577Z",
+      "updated_at": "2026-03-15T05:37:51.577Z"
+    },
+    {
+      "id": "img_0004",
+      "path": "public/images/library/cocktails/coral-canopy-reef.png",
+      "display_name": "Coral Canopy Reef",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.578Z",
+      "updated_at": "2026-03-15T05:37:51.578Z"
+    },
+    {
+      "id": "img_0005",
+      "path": "public/images/library/cocktails/crimson-tide-bowl.png",
+      "display_name": "Crimson Tide Bowl",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.579Z",
+      "updated_at": "2026-03-15T05:37:51.579Z"
+    },
+    {
+      "id": "img_0006",
+      "path": "public/images/library/cocktails/empires-eclipse-bowl.png",
+      "display_name": "Empires Eclipse Bowl",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.581Z",
+      "updated_at": "2026-03-15T05:37:51.581Z"
+    },
+    {
+      "id": "img_0007",
+      "path": "public/images/library/cocktails/enchanted-canopy-fog-cutter.png",
+      "display_name": "Enchanted Canopy Fog Cutter",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.583Z",
+      "updated_at": "2026-03-15T05:37:51.583Z"
+    },
+    {
+      "id": "img_0008",
+      "path": "public/images/library/cocktails/feathered-frenzy-zombie.png",
+      "display_name": "Feathered Frenzy Zombie",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.584Z",
+      "updated_at": "2026-03-15T05:37:51.584Z"
+    },
+    {
+      "id": "img_0009",
+      "path": "public/images/library/cocktails/flamingos-fancy-planters-punch.png",
+      "display_name": "Flamingos Fancy Planters Punch",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.585Z",
+      "updated_at": "2026-03-15T05:37:51.585Z"
+    },
+    {
+      "id": "img_0010",
+      "path": "public/images/library/cocktails/island-rendezvous-bahama-mama.png",
+      "display_name": "Island Rendezvous Bahama Mama",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.587Z",
+      "updated_at": "2026-03-15T05:37:51.587Z"
+    },
+    {
+      "id": "img_0011",
+      "path": "public/images/library/cocktails/islanders-sunset-bowl.png",
+      "display_name": "Islanders Sunset Bowl",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.589Z",
+      "updated_at": "2026-03-15T05:37:51.589Z"
+    },
+    {
+      "id": "img_0012",
+      "path": "public/images/library/cocktails/islanders-sunset-bowls.png",
+      "display_name": "Islanders Sunset Bowls",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.590Z",
+      "updated_at": "2026-03-15T05:37:51.590Z"
+    },
+    {
+      "id": "img_0013",
+      "path": "public/images/library/cocktails/jungle-plumage-bird.png",
+      "display_name": "Jungle Plumage Bird",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.592Z",
+      "updated_at": "2026-03-15T05:37:51.592Z"
+    },
+    {
+      "id": "img_0014",
+      "path": "public/images/library/cocktails/molten-sunset-lava-flow.png",
+      "display_name": "Molten Sunset Lava Flow",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.594Z",
+      "updated_at": "2026-03-15T05:37:51.594Z"
+    },
+    {
+      "id": "img_0015",
+      "path": "public/images/library/cocktails/mystic-jungle-bowl.png",
+      "display_name": "Mystic Jungle Bowl",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.595Z",
+      "updated_at": "2026-03-15T05:37:51.595Z"
+    },
+    {
+      "id": "img_0016",
+      "path": "public/images/library/cocktails/nautical-nest-navy-grog.png",
+      "display_name": "Nautical Nest Navy Grog",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.597Z",
+      "updated_at": "2026-03-15T05:37:51.597Z"
+    },
+    {
+      "id": "img_0017",
+      "path": "public/images/library/cocktails/navigators-grog-bowl.png",
+      "display_name": "Navigators Grog Bowl",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.598Z",
+      "updated_at": "2026-03-15T05:37:51.598Z"
+    },
+    {
+      "id": "img_0018",
+      "path": "public/images/library/cocktails/opulent-oasis-pearl-diver.png",
+      "display_name": "Opulent Oasis Pearl Diver",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.601Z",
+      "updated_at": "2026-03-15T05:37:51.601Z"
+    },
+    {
+      "id": "img_0019",
+      "path": "public/images/library/cocktails/pirates-bounty-bowl.png",
+      "display_name": "Pirates Bounty Bowl",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.602Z",
+      "updated_at": "2026-03-15T05:37:51.602Z"
+    },
+    {
+      "id": "img_0020",
+      "path": "public/images/library/cocktails/plumed-paradise-pia-colada.png",
+      "display_name": "Plumed Paradise Pia Colada",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.604Z",
+      "updated_at": "2026-03-15T05:37:51.604Z"
+    },
+    {
+      "id": "img_0021",
+      "path": "public/images/library/cocktails/rum-ripples-rum-runner.png",
+      "display_name": "Rum Ripples Rum Runner",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.606Z",
+      "updated_at": "2026-03-15T05:37:51.606Z"
+    },
+    {
+      "id": "img_0022",
+      "path": "public/images/library/cocktails/sapphire-skies-blue-hawaii.png",
+      "display_name": "Sapphire Skies Blue Hawaii",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.607Z",
+      "updated_at": "2026-03-15T05:37:51.607Z"
+    },
+    {
+      "id": "img_0023",
+      "path": "public/images/library/cocktails/shark-beak-bay-shark-bite.png",
+      "display_name": "Shark Beak Bay Shark Bite",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.608Z",
+      "updated_at": "2026-03-15T05:37:51.608Z"
+    },
+    {
+      "id": "img_0024",
+      "path": "public/images/library/cocktails/sirens-serenade-bowl.png",
+      "display_name": "Sirens Serenade Bowl",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.610Z",
+      "updated_at": "2026-03-15T05:37:51.610Z"
+    },
+    {
+      "id": "img_0025",
+      "path": "public/images/library/cocktails/soothing-sanctuary-painkiller.png",
+      "display_name": "Soothing Sanctuary Painkiller",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.611Z",
+      "updated_at": "2026-03-15T05:37:51.611Z"
+    },
+    {
+      "id": "img_0026",
+      "path": "public/images/library/cocktails/talons-tango-scorpion.png",
+      "display_name": "Talons Tango Scorpion",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.613Z",
+      "updated_at": "2026-03-15T05:37:51.613Z"
+    },
+    {
+      "id": "img_0027",
+      "path": "public/images/library/cocktails/trader-vics-mai-tai.png",
+      "display_name": "Trader Vics Mai Tai",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.615Z",
+      "updated_at": "2026-03-15T05:37:51.615Z"
+    },
+    {
+      "id": "img_0028",
+      "path": "public/images/library/cocktails/tropic-wings-singapore-sling.png",
+      "display_name": "Tropic Wings Singapore Sling",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.616Z",
+      "updated_at": "2026-03-15T05:37:51.616Z"
+    },
+    {
+      "id": "img_0029",
+      "path": "public/images/library/cocktails/typhoon-treasure-bowl.png",
+      "display_name": "Typhoon Treasure Bowl",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.618Z",
+      "updated_at": "2026-03-15T05:37:51.618Z"
+    },
+    {
+      "id": "img_0030",
+      "path": "public/images/library/cocktails/volcanic-spirit-bowl.png",
+      "display_name": "Volcanic Spirit Bowl",
+      "category_id": "cocktails",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.620Z",
+      "updated_at": "2026-03-15T05:37:51.620Z"
+    },
+    {
+      "id": "img_0031",
+      "path": "public/images/library/cuisine/ahi-nioise-with-a-twist.png",
+      "display_name": "Ahi Nioise With A Twist",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.621Z",
+      "updated_at": "2026-03-15T05:37:51.621Z"
+    },
+    {
+      "id": "img_0032",
+      "path": "public/images/library/cuisine/ahi-nioise-with-a-twist-2.png",
+      "display_name": "Ahi Nioise With A Twist",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.623Z",
+      "updated_at": "2026-03-15T05:37:51.623Z"
+    },
+    {
+      "id": "img_0033",
+      "path": "public/images/library/cuisine/ahi-tuna-taco.png",
+      "display_name": "Ahi Tuna Taco",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.625Z",
+      "updated_at": "2026-03-15T05:37:51.625Z"
+    },
+    {
+      "id": "img_0034",
+      "path": "public/images/library/cuisine/ahi-tuna-tacos.png",
+      "display_name": "Ahi Tuna Tacos",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.626Z",
+      "updated_at": "2026-03-15T05:37:51.626Z"
+    },
+    {
+      "id": "img_0035",
+      "path": "public/images/library/cuisine/blackened-mahi-mahi.png",
+      "display_name": "Blackened Mahi Mahi",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.628Z",
+      "updated_at": "2026-03-15T05:37:51.628Z"
+    },
+    {
+      "id": "img_0036",
+      "path": "public/images/library/cuisine/caramelized-rum-cake.png",
+      "display_name": "Caramelized Rum Cake",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.632Z",
+      "updated_at": "2026-03-15T05:37:51.632Z"
+    },
+    {
+      "id": "img_0037",
+      "path": "public/images/library/cuisine/caribbean-jerk-chicken-skewers.png",
+      "display_name": "Caribbean Jerk Chicken Skewers",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.634Z",
+      "updated_at": "2026-03-15T05:37:51.634Z"
+    },
+    {
+      "id": "img_0038",
+      "path": "public/images/library/cuisine/caribbean-shrimp-bowl.png",
+      "display_name": "Caribbean Shrimp Bowl",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.635Z",
+      "updated_at": "2026-03-15T05:37:51.635Z"
+    },
+    {
+      "id": "img_0039",
+      "path": "public/images/library/cuisine/caribbean-spiced-lamb-skewers.png",
+      "display_name": "Caribbean Spiced Lamb Skewers",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.637Z",
+      "updated_at": "2026-03-15T05:37:51.637Z"
+    },
+    {
+      "id": "img_0040",
+      "path": "public/images/library/cuisine/chicken-and-pineapple-bowl.png",
+      "display_name": "Chicken And Pineapple Bowl",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.643Z",
+      "updated_at": "2026-03-15T05:37:51.643Z"
+    },
+    {
+      "id": "img_0041",
+      "path": "public/images/library/cuisine/chocolate-avocado-pudding.png",
+      "display_name": "Chocolate Avocado Pudding",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.644Z",
+      "updated_at": "2026-03-15T05:37:51.644Z"
+    },
+    {
+      "id": "img_0042",
+      "path": "public/images/library/cuisine/chocolate-lava-cake.png",
+      "display_name": "Chocolate Lava Cake",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.646Z",
+      "updated_at": "2026-03-15T05:37:51.646Z"
+    },
+    {
+      "id": "img_0043",
+      "path": "public/images/library/cuisine/citrus-cured-hamachi.png",
+      "display_name": "Citrus Cured Hamachi",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.647Z",
+      "updated_at": "2026-03-15T05:37:51.647Z"
+    },
+    {
+      "id": "img_0044",
+      "path": "public/images/library/cuisine/citrus-ceviche-mahi-mahi.png",
+      "display_name": "Citrus Ceviche Mahi Mahi",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.651Z",
+      "updated_at": "2026-03-15T05:37:51.651Z"
+    },
+    {
+      "id": "img_0045",
+      "path": "public/images/library/cuisine/coconut-panna-cotta.png",
+      "display_name": "Coconut Panna Cotta",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.652Z",
+      "updated_at": "2026-03-15T05:37:51.652Z"
+    },
+    {
+      "id": "img_0046",
+      "path": "public/images/library/cuisine/coconut-shrimp-platter.png",
+      "display_name": "Coconut Shrimp Platter",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.654Z",
+      "updated_at": "2026-03-15T05:37:51.654Z"
+    },
+    {
+      "id": "img_0047",
+      "path": "public/images/library/cuisine/crab-stuffed-avocado-bowl.png",
+      "display_name": "Crab Stuffed Avocado Bowl",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.655Z",
+      "updated_at": "2026-03-15T05:37:51.655Z"
+    },
+    {
+      "id": "img_0048",
+      "path": "public/images/library/cuisine/crab-louie-salad.png",
+      "display_name": "Crab Louie Salad",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.657Z",
+      "updated_at": "2026-03-15T05:37:51.657Z"
+    },
+    {
+      "id": "img_0049",
+      "path": "public/images/library/cuisine/crab-and-citrus.png",
+      "display_name": "Crab And Citrus",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.659Z",
+      "updated_at": "2026-03-15T05:37:51.659Z"
+    },
+    {
+      "id": "img_0050",
+      "path": "public/images/library/cuisine/creamy-coconut.png",
+      "display_name": "Creamy Coconut",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.660Z",
+      "updated_at": "2026-03-15T05:37:51.660Z"
+    },
+    {
+      "id": "img_0051",
+      "path": "public/images/library/cuisine/deconstructed-ahi-poke.png",
+      "display_name": "Deconstructed Ahi Poke",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.663Z",
+      "updated_at": "2026-03-15T05:37:51.663Z"
+    },
+    {
+      "id": "img_0052",
+      "path": "public/images/library/cuisine/deconstructed-ahi-poke-bowl.png",
+      "display_name": "Deconstructed Ahi Poke Bowl",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.664Z",
+      "updated_at": "2026-03-15T05:37:51.664Z"
+    },
+    {
+      "id": "img_0053",
+      "path": "public/images/library/cuisine/dessert-passion-fruit-mousse.png",
+      "display_name": "Dessert Passion Fruit Mousse",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.667Z",
+      "updated_at": "2026-03-15T05:37:51.667Z"
+    },
+    {
+      "id": "img_0054",
+      "path": "public/images/library/cuisine/garlic-butter-shrimp-skewers.png",
+      "display_name": "Garlic Butter Shrimp Skewers",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.669Z",
+      "updated_at": "2026-03-15T05:37:51.669Z"
+    },
+    {
+      "id": "img_0055",
+      "path": "public/images/library/cuisine/grilled-chicken-with-mango-glaze.png",
+      "display_name": "Grilled Chicken With Mango Glaze",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.670Z",
+      "updated_at": "2026-03-15T05:37:51.670Z"
+    },
+    {
+      "id": "img_0056",
+      "path": "public/images/library/cuisine/grilled-pineapple-banana-rum-skewers.png",
+      "display_name": "Grilled Pineapple Banana Rum Skewers",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.672Z",
+      "updated_at": "2026-03-15T05:37:51.672Z"
+    },
+    {
+      "id": "img_0057",
+      "path": "public/images/library/cuisine/herb-grilled-swordfish-gril.png",
+      "display_name": "Herb Grilled Swordfish Gril",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.674Z",
+      "updated_at": "2026-03-15T05:37:51.674Z"
+    },
+    {
+      "id": "img_0058",
+      "path": "public/images/library/cuisine/island-bbq-slider-trio.png",
+      "display_name": "Island BBQ Slider Trio",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.675Z",
+      "updated_at": "2026-03-15T05:37:51.675Z"
+    },
+    {
+      "id": "img_0059",
+      "path": "public/images/library/cuisine/island-charcuterie.png",
+      "display_name": "Island Charcuterie",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.677Z",
+      "updated_at": "2026-03-15T05:37:51.677Z"
+    },
+    {
+      "id": "img_0060",
+      "path": "public/images/library/cuisine/island-teriyaki-mahi-mahi-bowl.png",
+      "display_name": "Island Teriyaki Mahi Mahi Bowl",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.679Z",
+      "updated_at": "2026-03-15T05:37:51.679Z"
+    },
+    {
+      "id": "img_0061",
+      "path": "public/images/library/cuisine/island-vegetable-curry-vegan.png",
+      "display_name": "Island Vegetable Curry Vegan",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.685Z",
+      "updated_at": "2026-03-15T05:37:51.685Z"
+    },
+    {
+      "id": "img_0062",
+      "path": "public/images/library/cuisine/lamb-gyro-bowl.png",
+      "display_name": "Lamb Gyro Bowl",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.687Z",
+      "updated_at": "2026-03-15T05:37:51.687Z"
+    },
+    {
+      "id": "img_0063",
+      "path": "public/images/library/cuisine/lamb-loin-chops.png",
+      "display_name": "Lamb Loin Chops",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.689Z",
+      "updated_at": "2026-03-15T05:37:51.689Z"
+    },
+    {
+      "id": "img_0064",
+      "path": "public/images/library/cuisine/lamb-salad.png",
+      "display_name": "Lamb Salad",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.690Z",
+      "updated_at": "2026-03-15T05:37:51.690Z"
+    },
+    {
+      "id": "img_0065",
+      "path": "public/images/library/cuisine/luau-style-pulled-pork-salad.png",
+      "display_name": "Luau Style Pulled Pork Salad",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.692Z",
+      "updated_at": "2026-03-15T05:37:51.692Z"
+    },
+    {
+      "id": "img_0066",
+      "path": "public/images/library/cuisine/mahi-mahi-salad.png",
+      "display_name": "Mahi Mahi Salad",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.694Z",
+      "updated_at": "2026-03-15T05:37:51.694Z"
+    },
+    {
+      "id": "img_0067",
+      "path": "public/images/library/cuisine/pineapple-banana-skewers.png",
+      "display_name": "Pineapple Banana Skewers",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.695Z",
+      "updated_at": "2026-03-15T05:37:51.695Z"
+    },
+    {
+      "id": "img_0068",
+      "path": "public/images/library/cuisine/polynesian-crab-rangoon.png",
+      "display_name": "Polynesian Crab Rangoon",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.697Z",
+      "updated_at": "2026-03-15T05:37:51.697Z"
+    },
+    {
+      "id": "img_0069",
+      "path": "public/images/library/cuisine/polynesian-pork-belly.png",
+      "display_name": "Polynesian Pork Belly",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.698Z",
+      "updated_at": "2026-03-15T05:37:51.698Z"
+    },
+    {
+      "id": "img_0070",
+      "path": "public/images/library/cuisine/pork-loin-chop.png",
+      "display_name": "Pork Loin Chop",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.700Z",
+      "updated_at": "2026-03-15T05:37:51.700Z"
+    },
+    {
+      "id": "img_0071",
+      "path": "public/images/library/cuisine/sesame-crusted-ahi.png",
+      "display_name": "Sesame Crusted Ahi",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.702Z",
+      "updated_at": "2026-03-15T05:37:51.702Z"
+    },
+    {
+      "id": "img_0072",
+      "path": "public/images/library/cuisine/sesame-crusted-ahi-steak.png",
+      "display_name": "Sesame Crusted Ahi Steak",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.703Z",
+      "updated_at": "2026-03-15T05:37:51.703Z"
+    },
+    {
+      "id": "img_0073",
+      "path": "public/images/library/cuisine/shrimp-and-avocado-salad.png",
+      "display_name": "Shrimp And Avocado Salad",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.705Z",
+      "updated_at": "2026-03-15T05:37:51.705Z"
+    },
+    {
+      "id": "img_0074",
+      "path": "public/images/library/cuisine/spiced-pork-ribs.png",
+      "display_name": "Spiced Pork Ribs",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.707Z",
+      "updated_at": "2026-03-15T05:37:51.707Z"
+    },
+    {
+      "id": "img_0075",
+      "path": "public/images/library/cuisine/starter-mango-and-scallop-ceviche.png",
+      "display_name": "Starter Mango And Scallop Ceviche",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.709Z",
+      "updated_at": "2026-03-15T05:37:51.709Z"
+    },
+    {
+      "id": "img_0076",
+      "path": "public/images/library/cuisine/tofu-poke-bowl-vegan.png",
+      "display_name": "Tofu Poke Bowl Vegan",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.711Z",
+      "updated_at": "2026-03-15T05:37:51.711Z"
+    },
+    {
+      "id": "img_0077",
+      "path": "public/images/library/cuisine/tropical-chicken-salad.png",
+      "display_name": "Tropical Chicken Salad",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.712Z",
+      "updated_at": "2026-03-15T05:37:51.712Z"
+    },
+    {
+      "id": "img_0078",
+      "path": "public/images/library/cuisine/tropical-fruit-brule.png",
+      "display_name": "Tropical Fruit Brule",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.714Z",
+      "updated_at": "2026-03-15T05:37:51.714Z"
+    },
+    {
+      "id": "img_0079",
+      "path": "public/images/library/cuisine/tropical-shrimp-cocktail.png",
+      "display_name": "Tropical Shrimp Cocktail",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.715Z",
+      "updated_at": "2026-03-15T05:37:51.715Z"
+    },
+    {
+      "id": "img_0080",
+      "path": "public/images/library/cuisine/tropical-stuffed-peppers-vegetarian.png",
+      "display_name": "Tropical Stuffed Peppers Vegetarian",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.717Z",
+      "updated_at": "2026-03-15T05:37:51.717Z"
+    },
+    {
+      "id": "img_0081",
+      "path": "public/images/library/cuisine/citrus-cured-hamachi-2.png",
+      "display_name": "Citrus Cured Hamachi",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.721Z",
+      "updated_at": "2026-03-15T05:37:51.721Z"
+    },
+    {
+      "id": "img_0082",
+      "path": "public/images/library/cuisine/crispy-coconut-crusted-shrimp.png",
+      "display_name": "Crispy Coconut Crusted Shrimp",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.726Z",
+      "updated_at": "2026-03-15T05:37:51.726Z"
+    },
+    {
+      "id": "img_0083",
+      "path": "public/images/library/cuisine/grilled-mahi-mahi-salad.png",
+      "display_name": "Grilled Mahi Mahi Salad",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.729Z",
+      "updated_at": "2026-03-15T05:37:51.729Z"
+    },
+    {
+      "id": "img_0084",
+      "path": "public/images/library/cuisine/island-cobb-salad.png",
+      "display_name": "Island Cobb Salad",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.733Z",
+      "updated_at": "2026-03-15T05:37:51.733Z"
+    },
+    {
+      "id": "img_0085",
+      "path": "public/images/library/cuisine/lobster-bisque.png",
+      "display_name": "Lobster Bisque",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.736Z",
+      "updated_at": "2026-03-15T05:37:51.736Z"
+    },
+    {
+      "id": "img_0086",
+      "path": "public/images/library/cuisine/octopus.png",
+      "display_name": "Octopus",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.741Z",
+      "updated_at": "2026-03-15T05:37:51.741Z"
+    },
+    {
+      "id": "img_0087",
+      "path": "public/images/library/cuisine/oyster-selection-with-tropical-mignonettes.png",
+      "display_name": "Oyster Selection With Tropical Mignonettes",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.744Z",
+      "updated_at": "2026-03-15T05:37:51.744Z"
+    },
+    {
+      "id": "img_0088",
+      "path": "public/images/library/cuisine/spicy-tuna-poke.png",
+      "display_name": "Spicy Tuna Poke",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.750Z",
+      "updated_at": "2026-03-15T05:37:51.750Z"
+    },
+    {
+      "id": "img_0089",
+      "path": "public/images/library/cuisine/tropical-seafood-chowder.png",
+      "display_name": "Tropical Seafood Chowder",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.752Z",
+      "updated_at": "2026-03-15T05:37:51.752Z"
+    },
+    {
+      "id": "img_0090",
+      "path": "public/images/library/cuisine/ahi-in-mini-tortillas.png",
+      "display_name": "Ahi In Mini Tortillas",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.757Z",
+      "updated_at": "2026-03-15T05:37:51.757Z"
+    },
+    {
+      "id": "img_0091",
+      "path": "public/images/library/cuisine/crabmeat-and-creamy-avocad.png",
+      "display_name": "Crabmeat And Creamy Avocad",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.759Z",
+      "updated_at": "2026-03-15T05:37:51.759Z"
+    },
+    {
+      "id": "img_0092",
+      "path": "public/images/library/cuisine/medley-of-shrimp-mahi-mahi.png",
+      "display_name": "Medley Of Shrimp Mahi Mahi",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.764Z",
+      "updated_at": "2026-03-15T05:37:51.764Z"
+    },
+    {
+      "id": "img_0093",
+      "path": "public/images/library/cuisine/vegan-mezze-platter.png",
+      "display_name": "Vegan Mezze Platter",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.766Z",
+      "updated_at": "2026-03-15T05:37:51.766Z"
+    },
+    {
+      "id": "img_0094",
+      "path": "public/images/library/cuisine/vegetarian-spring-roll-platter.png",
+      "display_name": "Vegetarian Spring Roll Platter",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.767Z",
+      "updated_at": "2026-03-15T05:37:51.767Z"
+    },
+    {
+      "id": "img_0095",
+      "path": "public/images/library/cuisine/whole-grilled-dungeness-crab.png",
+      "display_name": "Whole Grilled Dungeness Crab",
+      "category_id": "cuisine",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.770Z",
+      "updated_at": "2026-03-15T05:37:51.770Z"
+    },
+    {
+      "id": "img_0096",
+      "path": "public/images/library/logos/spoonbill.png",
+      "display_name": "Spoonbill",
+      "category_id": "logos",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.771Z",
+      "updated_at": "2026-03-15T05:37:51.771Z"
+    },
+    {
+      "id": "img_0097",
+      "path": "public/images/library/logos/logodark.png",
+      "display_name": "Logodark",
+      "category_id": "logos",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.771Z",
+      "updated_at": "2026-03-15T05:37:51.771Z"
+    },
+    {
+      "id": "img_0098",
+      "path": "public/images/library/logos/logogold.png",
+      "display_name": "Logogold",
+      "category_id": "logos",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.771Z",
+      "updated_at": "2026-03-15T05:37:51.771Z"
+    },
+    {
+      "id": "img_0099",
+      "path": "public/images/library/logos/logoround.png",
+      "display_name": "Logoround",
+      "category_id": "logos",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.772Z",
+      "updated_at": "2026-03-15T05:37:51.772Z"
+    },
+    {
+      "id": "img_0100",
+      "path": "public/images/library/misc/mixologyclass.png",
+      "display_name": "MixologyClass",
+      "category_id": "misc",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.772Z",
+      "updated_at": "2026-03-15T05:37:51.772Z"
+    },
+    {
+      "id": "img_0101",
+      "path": "public/images/library/misc/not-selected.png",
+      "display_name": "Not Selected",
+      "category_id": "misc",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.772Z",
+      "updated_at": "2026-03-15T05:37:51.772Z"
+    },
+    {
+      "id": "img_0102",
+      "path": "public/images/library/misc/selected.png",
+      "display_name": "Selected",
+      "category_id": "misc",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.773Z",
+      "updated_at": "2026-03-15T05:37:51.773Z"
+    },
+    {
+      "id": "img_0103",
+      "path": "public/images/library/misc/tiki-glass-icon.png",
+      "display_name": "Tiki Glass Icon",
+      "category_id": "misc",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.773Z",
+      "updated_at": "2026-03-15T05:37:51.773Z"
+    },
+    {
+      "id": "img_0104",
+      "path": "public/images/library/misc/tiki-icon.png",
+      "display_name": "Tiki Icon",
+      "category_id": "misc",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.773Z",
+      "updated_at": "2026-03-15T05:37:51.773Z"
+    },
+    {
+      "id": "img_0105",
+      "path": "public/images/library/misc/tiki-noir.png",
+      "display_name": "Tiki Noir",
+      "category_id": "misc",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.773Z",
+      "updated_at": "2026-03-15T05:37:51.773Z"
+    },
+    {
+      "id": "img_0106",
+      "path": "public/images/library/misc/flights.png",
+      "display_name": "Flights",
+      "category_id": "misc",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.774Z",
+      "updated_at": "2026-03-15T05:37:51.774Z"
+    },
+    {
+      "id": "img_0107",
+      "path": "public/images/library/staff/chef-christina.png",
+      "display_name": "Chef Christina",
+      "category_id": "staff",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.776Z",
+      "updated_at": "2026-03-15T05:37:51.776Z"
+    },
+    {
+      "id": "img_0108",
+      "path": "public/images/library/staff/chef-james.png",
+      "display_name": "Chef James",
+      "category_id": "staff",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.778Z",
+      "updated_at": "2026-03-15T05:37:51.778Z"
+    },
+    {
+      "id": "img_0109",
+      "path": "public/images/library/staff/justise-hat.png",
+      "display_name": "Justise Hat",
+      "category_id": "staff",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.781Z",
+      "updated_at": "2026-03-15T05:37:51.781Z"
+    },
+    {
+      "id": "img_0110",
+      "path": "public/images/library/staff/justise-hat-0-5x.png",
+      "display_name": "Justise Hat@0.5x",
+      "category_id": "staff",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.785Z",
+      "updated_at": "2026-03-15T05:37:51.785Z"
+    },
+    {
+      "id": "img_0111",
+      "path": "public/images/library/staff/mixologist-amelia.png",
+      "display_name": "Mixologist Amelia",
+      "category_id": "staff",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.786Z",
+      "updated_at": "2026-03-15T05:37:51.786Z"
+    },
+    {
+      "id": "img_0112",
+      "path": "public/images/library/staff/mixologist-gabriel.png",
+      "display_name": "Mixologist Gabriel",
+      "category_id": "staff",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.790Z",
+      "updated_at": "2026-03-15T05:37:51.790Z"
+    },
+    {
+      "id": "img_0113",
+      "path": "public/images/library/staff/staff-photo-thumb.png",
+      "display_name": "Staff Photo Thumb",
+      "category_id": "staff",
+      "description": null,
+      "created_at": "2026-03-15T05:37:51.791Z",
+      "updated_at": "2026-03-15T05:37:51.791Z"
+    },
+    {
+      "id": "img_0114",
+      "path": "public/images/library/staff/staff-photo-thumb-upscayl-5x-realesrgan-x4plus-compressed.jpg",
+      "display_name": "Staff Photo Thumb Upscayl 5x Realesrgan X4plus",
+      "category_id": "staff",
+      "description": null,
+      "created_at": "2026-03-15T05:37:52.939Z",
+      "updated_at": "2026-03-15T05:37:52.939Z"
+    },
+    {
+      "id": "img_0115",
+      "path": "public/images/library/staff/staff-photo.png",
+      "display_name": "Staff Photo",
+      "category_id": "staff",
+      "description": null,
+      "created_at": "2026-03-15T05:37:52.939Z",
+      "updated_at": "2026-03-15T05:37:52.939Z"
+    },
+    {
+      "id": "img_0116",
+      "path": "public/images/library/venue/dinningroom.png",
+      "display_name": "Dinningroom",
+      "category_id": "venue",
+      "description": null,
+      "created_at": "2026-03-15T05:37:52.942Z",
+      "updated_at": "2026-03-15T05:37:52.942Z"
+    },
+    {
+      "id": "img_0117",
+      "path": "public/images/library/venue/entrywaitingarea.png",
+      "display_name": "Entrywaitingarea",
+      "category_id": "venue",
+      "description": null,
+      "created_at": "2026-03-15T05:37:52.943Z",
+      "updated_at": "2026-03-15T05:37:52.943Z"
+    },
+    {
+      "id": "img_0118",
+      "path": "public/images/library/venue/exterior.png",
+      "display_name": "Exterior",
+      "category_id": "venue",
+      "description": null,
+      "created_at": "2026-03-15T05:37:52.946Z",
+      "updated_at": "2026-03-15T05:37:52.946Z"
+    },
+    {
+      "id": "img_0119",
+      "path": "public/images/library/venue/hoststand.png",
+      "display_name": "Hoststand",
+      "category_id": "venue",
+      "description": null,
+      "created_at": "2026-03-15T05:37:52.950Z",
+      "updated_at": "2026-03-15T05:37:52.950Z"
+    },
+    {
+      "id": "img_0120",
+      "path": "public/images/library/venue/mainbar.png",
+      "display_name": "Mainbar",
+      "category_id": "venue",
+      "description": null,
+      "created_at": "2026-03-15T05:37:52.953Z",
+      "updated_at": "2026-03-15T05:37:52.953Z"
+    },
+    {
+      "id": "img_0121",
+      "path": "public/images/library/venue/maindinningroom.png",
+      "display_name": "Maindinningroom",
+      "category_id": "venue",
+      "description": null,
+      "created_at": "2026-03-15T05:37:52.955Z",
+      "updated_at": "2026-03-15T05:37:52.955Z"
+    },
+    {
+      "id": "img_0122",
+      "path": "public/images/library/venue/multiimage.png",
+      "display_name": "Multiimage",
+      "category_id": "venue",
+      "description": null,
+      "created_at": "2026-03-15T05:37:52.957Z",
+      "updated_at": "2026-03-15T05:37:52.957Z"
+    },
+    {
+      "id": "img_0123",
+      "path": "public/images/library/venue/patio.png",
+      "display_name": "Patio",
+      "category_id": "venue",
+      "description": null,
+      "created_at": "2026-03-15T05:37:52.960Z",
+      "updated_at": "2026-03-15T05:37:52.960Z"
+    },
+    {
+      "id": "img_0124",
+      "path": "public/images/library/venue/privateroom.png",
+      "display_name": "Privateroom",
+      "category_id": "venue",
+      "description": null,
+      "created_at": "2026-03-15T05:37:52.962Z",
+      "updated_at": "2026-03-15T05:37:52.962Z"
+    }
+  ]
+}
