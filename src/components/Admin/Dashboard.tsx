@@ -380,6 +380,11 @@ const dateKeyToUtcDay = (value: string) => {
   return Math.floor(Date.UTC(year, month - 1, day) / (24 * 60 * 60 * 1000));
 };
 
+const utcDayToDateKey = (utcDay: number) => {
+  const value = new Date(utcDay * 24 * 60 * 60 * 1000);
+  return value.toISOString().slice(0, 10);
+};
+
 const getInclusiveDateSpanDays = (startDate: string, endDate: string) => {
   const startDay = dateKeyToUtcDay(startDate);
   const endDay = dateKeyToUtcDay(endDate);
@@ -572,6 +577,7 @@ const Dashboard: React.FC = () => {
   const currentWeekStart = useMemo(() => addDays(thisWeekStart, weeklyScheduleOffset * 7), [thisWeekStart, weeklyScheduleOffset]);
   const currentWeekEnd = addDays(currentWeekStart, 7);
   const weekDates = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(currentWeekStart, index)), [currentWeekStart]);
+  const weekDateKeys = useMemo(() => weekDates.map((date) => date.toISOString().slice(0, 10)), [weekDates]);
   const canViewPreviousScheduleWeek = weeklyScheduleOffset > 0;
   const canViewNextScheduleWeek = weeklyScheduleOffset < 3;
   const weekRangeLabel = useMemo(() => {
@@ -808,6 +814,45 @@ const Dashboard: React.FC = () => {
       .sort((a, b) => `${a.start_date}${a.created_at || ''}`.localeCompare(`${b.start_date}${b.created_at || ''}`));
   }, [myEmployee, timeOffRequests, todayKey]);
 
+  const approvedTimeOffByEmployeeDate = useMemo(() => {
+    const grouped: Record<string, WorkforceTimeOffRequest[]> = {};
+
+    timeOffRequests.forEach((request) => {
+      if (normalizeTimeOffStatus(request.status) !== 'approved') return;
+      if (!request.employee_id || !request.start_date || !request.end_date) return;
+
+      const startDay = dateKeyToUtcDay(request.start_date);
+      const endDay = dateKeyToUtcDay(request.end_date);
+      if (startDay === null || endDay === null || endDay < startDay) return;
+
+      for (let day = startDay; day <= endDay; day += 1) {
+        const key = `${request.employee_id}::${utcDayToDateKey(day)}`;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(request);
+      }
+    });
+
+    return grouped;
+  }, [timeOffRequests]);
+
+  const approvedTimeOffToday = useMemo(() => {
+    const entries = employees
+      .map((employee) => {
+        const requests = approvedTimeOffByEmployeeDate[`${employee.id}::${todayKey}`] || [];
+        if (!requests.length) return null;
+        const typeLabels = Array.from(new Set(requests.map((request) => formatTimeOffTypeLabel(request.request_type))));
+        return {
+          employeeId: employee.id,
+          employeeName: employee.name,
+          typeLabels,
+        };
+      })
+      .filter((entry): entry is { employeeId: string; employeeName: string; typeLabels: string[] } => Boolean(entry))
+      .sort((a, b) => a.employeeName.localeCompare(b.employeeName));
+
+    return entries;
+  }, [approvedTimeOffByEmployeeDate, employees, todayKey]);
+
   const activeCompanyHolidays = useMemo(
     () =>
       companyHolidays
@@ -942,9 +987,19 @@ const Dashboard: React.FC = () => {
       return myEmployee ? [myEmployee] : [];
     }
 
-    const employeeIdsWithShifts = new Set(weeklyShifts.map((shift) => shift.employee_id));
+    const employeeIdsWithShiftsOrTimeOff = new Set(weeklyShifts.map((shift) => shift.employee_id));
+
+    employees.forEach((employee) => {
+      const hasApprovedTimeOffInWeek = weekDateKeys.some(
+        (dateKey) => (approvedTimeOffByEmployeeDate[`${employee.id}::${dateKey}`] || []).length > 0,
+      );
+      if (hasApprovedTimeOffInWeek) {
+        employeeIdsWithShiftsOrTimeOff.add(employee.id);
+      }
+    });
+
     return employees
-      .filter((employee) => employeeIdsWithShifts.has(employee.id))
+      .filter((employee) => employeeIdsWithShiftsOrTimeOff.has(employee.id))
       .sort((a, b) => {
         const assignmentsA = (employeeRoleAssignmentsByEmployeeId[a.id] || []).filter(
           (assignment) => assignment.active !== false,
@@ -971,6 +1026,8 @@ const Dashboard: React.FC = () => {
     employees,
     myEmployee,
     roleOrderIndexById,
+    approvedTimeOffByEmployeeDate,
+    weekDateKeys,
     weeklyRoleRankByEmployeeId,
     weeklyShifts,
   ]);
@@ -1776,6 +1833,20 @@ const Dashboard: React.FC = () => {
                   {!scheduleByDepartment.length && (
                     <div className="text-sm text-gray-500">No shifts scheduled for today.</div>
                   )}
+                  {approvedTimeOffToday.length > 0 && (
+                    <div className="border border-amber-200 bg-amber-50 rounded-lg p-3">
+                      <div className="text-xs uppercase tracking-wide text-amber-800 font-semibold mb-2">
+                        Approved Time Off Today
+                      </div>
+                      <div className="space-y-1">
+                        {approvedTimeOffToday.map((entry) => (
+                          <div key={entry.employeeId} className="text-sm text-amber-900">
+                            {entry.employeeName} • {entry.typeLabels.join(', ')}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1951,12 +2022,25 @@ const Dashboard: React.FC = () => {
                           const dateKey = date.toISOString().slice(0, 10);
                           const cellKey = `${employee.id}::${dateKey}`;
                           const dayShifts = weeklyShiftsByEmployeeAndDate[cellKey] || [];
+                          const approvedRequests = approvedTimeOffByEmployeeDate[cellKey] || [];
+                          const hasApprovedTimeOff = approvedRequests.length > 0;
+                          const approvedTypeLabels = Array.from(
+                            new Set(approvedRequests.map((request) => formatTimeOffTypeLabel(request.request_type))),
+                          );
 
                           return (
-                            <td key={cellKey} className="px-3 py-2 align-top border-r border-gray-100 last:border-r-0">
-                              {dayShifts.length > 0 ? (
-                                <div className="space-y-2">
-                                  {dayShifts.map((shift) => (
+                            <td
+                              key={cellKey}
+                              className={`px-3 py-2 align-top border-r border-gray-100 last:border-r-0 ${hasApprovedTimeOff ? 'bg-amber-50/60' : ''}`}
+                            >
+                              <div className="space-y-2">
+                                {hasApprovedTimeOff && (
+                                  <div className="text-[11px] uppercase tracking-wide font-semibold text-amber-800">
+                                    Approved {approvedTypeLabels.join(' / ')}{approvedTypeLabels.length > 0 ? '' : ' Time Off'}
+                                  </div>
+                                )}
+                                {dayShifts.length > 0 ? (
+                                  dayShifts.map((shift) => (
                                     <div key={shift.id} className="rounded-md border border-gray-100 bg-gray-50 px-2 py-1.5">
                                       <div className="text-xs font-semibold text-gray-900">
                                         {formatSelectedScheduleWindow(shift.start_time, shift.end_time)}
@@ -1965,11 +2049,13 @@ const Dashboard: React.FC = () => {
                                         {roleById[shift.role_id]?.name || 'Role'}
                                       </div>
                                     </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div className="text-xs text-gray-400 py-1">Off</div>
-                              )}
+                                  ))
+                                ) : hasApprovedTimeOff ? (
+                                  <div className="text-xs text-amber-800 py-1">No shift scheduled (time off)</div>
+                                ) : (
+                                  <div className="text-xs text-gray-400 py-1">Off</div>
+                                )}
+                              </div>
                             </td>
                           );
                         })}

@@ -33,6 +33,8 @@ Use this checklist as definition of done for implementation.
 13. PTO request form only includes `PTO` and `Sick` request types.
 14. Requested amount auto-calculates from selected date range.
 15. Selecting start date auto-sets end date to the same date unless edited.
+16. Today PTO list only shows requests for the logged-in employee.
+17. Approved time-off requests are reflected in Today schedule displays (highlighted cells/labels).
 
 ## C. Task Board
 
@@ -54,6 +56,7 @@ Use this checklist as definition of done for implementation.
 5. Time Off + PTO uses a status dropdown (`pending`, `approved`, `denied`) for each request.
 6. Time Off + PTO no longer shows a request-creation button/form.
 7. Supervisor request list is ordered by status: `pending` first, then `approved`, then `denied`.
+8. Approved time-off requests are reflected in Team schedule displays (highlighted cells/labels).
 
 ## E. Log Archive
 

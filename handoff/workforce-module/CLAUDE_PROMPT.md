@@ -44,11 +44,14 @@ Use the handoff pack files in this folder:
   - Prevent ending a break before its configured minimum duration
 - PTO request behavior:
   - Team member can submit own request from Today
+  - Today PTO list must only show requests for the logged-in employee
   - List only current/future requests (hide past requests)
   - Show request status (`pending`, `approved`, `denied`)
   - Request amount is derived from selected start/end dates (no manual amount input)
   - Request type options are only `PTO` and `Sick`
   - Selecting start date should auto-set end date to the same date initially
+- Schedule behavior:
+  - Approved time-off requests must be reflected in schedule displays (cell highlights/labels)
 - Task Board behavior:
   - Group tasks by assignee
   - Overdue open tasks = red
