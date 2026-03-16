@@ -45,6 +45,8 @@ Use the handoff pack files in this folder:
 - PTO request behavior:
   - Team member can submit own request from Today
   - Today PTO list must only show requests for the logged-in employee
+  - Team member can edit/delete only their own request records
+  - If an approved request is edited, request status must be reset to `pending`
   - List only current/future requests (hide past requests)
   - Show request status (`pending`, `approved`, `denied`)
   - Request amount is derived from selected start/end dates (no manual amount input)

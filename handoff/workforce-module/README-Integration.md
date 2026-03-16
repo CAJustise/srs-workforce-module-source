@@ -62,6 +62,8 @@ For production/shared environments, set:
   - Today’s Schedule by Department
   - PTO Requests card (request button + future request list with approval status)
   - Today PTO request list is scoped to the logged-in employee only
+  - Logged-in employee can edit/delete only their own requests
+  - If an approved request is edited, its status resets to `pending`
   - PTO request amount auto-calculated from selected date range (no manual amount entry)
   - PTO request types limited to `PTO` and `Sick`
   - Weekly Schedule (this week + 3 weeks forward)

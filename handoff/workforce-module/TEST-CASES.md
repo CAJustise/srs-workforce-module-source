@@ -35,6 +35,8 @@ Use this checklist as definition of done for implementation.
 15. Selecting start date auto-sets end date to the same date unless edited.
 16. Today PTO list only shows requests for the logged-in employee.
 17. Approved time-off requests are reflected in Today schedule displays (highlighted cells/labels).
+18. Logged-in employee can edit/delete only their own requests.
+19. Editing an approved request resets status to `pending`.
 
 ## C. Task Board
 

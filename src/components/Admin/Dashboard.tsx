@@ -413,6 +413,16 @@ const formatWeekday = (value: Date) =>
     day: 'numeric',
   });
 
+const buildPtoRequestDraft = () => {
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    request_type: 'pto',
+    start_date: today,
+    end_date: today,
+    notes: '',
+  };
+};
+
 const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [savingAction, setSavingAction] = useState(false);
@@ -436,6 +446,7 @@ const Dashboard: React.FC = () => {
   const [showLogEntryForm, setShowLogEntryForm] = useState(false);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [showPtoRequestForm, setShowPtoRequestForm] = useState(false);
+  const [editingPtoRequestId, setEditingPtoRequestId] = useState('');
   const [weeklyScheduleOffset, setWeeklyScheduleOffset] = useState(0);
   const [scheduleTimeDisplayMode, setScheduleTimeDisplayMode] = useState<ScheduleTimeDisplayMode>(() =>
     readScheduleTimeDisplayMode(),
@@ -461,12 +472,7 @@ const Dashboard: React.FC = () => {
     due_time: '18:00',
     critical: false,
   });
-  const [ptoRequestDraft, setPtoRequestDraft] = useState({
-    request_type: 'pto',
-    start_date: new Date().toISOString().slice(0, 10),
-    end_date: new Date().toISOString().slice(0, 10),
-    notes: '',
-  });
+  const [ptoRequestDraft, setPtoRequestDraft] = useState(() => buildPtoRequestDraft());
   const rollingTaskForwardRef = useRef(false);
   const localScheduleTimeZone = useMemo(() => getScheduleLocalTimeZone(), []);
 
@@ -813,6 +819,15 @@ const Dashboard: React.FC = () => {
       .slice()
       .sort((a, b) => `${a.start_date}${a.created_at || ''}`.localeCompare(`${b.start_date}${b.created_at || ''}`));
   }, [myEmployee, timeOffRequests, todayKey]);
+
+  const editingPtoRequest = useMemo(() => {
+    if (!editingPtoRequestId || !myEmployee) return null;
+    return (
+      timeOffRequests.find(
+        (request) => request.id === editingPtoRequestId && request.employee_id === myEmployee.id,
+      ) || null
+    );
+  }, [editingPtoRequestId, myEmployee, timeOffRequests]);
 
   const approvedTimeOffByEmployeeDate = useMemo(() => {
     const grouped: Record<string, WorkforceTimeOffRequest[]> = {};
@@ -1235,7 +1250,28 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const createMyTimeOffRequest = async (event: React.FormEvent<HTMLFormElement>) => {
+  const beginEditMyTimeOffRequest = (request: WorkforceTimeOffRequest) => {
+    if (!myEmployee || request.employee_id !== myEmployee.id) {
+      alert('You can only edit your own request.');
+      return;
+    }
+    setEditingPtoRequestId(request.id);
+    setPtoRequestDraft({
+      request_type: String(request.request_type || 'pto').toLowerCase() === 'sick' ? 'sick' : 'pto',
+      start_date: request.start_date,
+      end_date: request.end_date,
+      notes: String(request.notes || ''),
+    });
+    setShowPtoRequestForm(true);
+  };
+
+  const cancelEditMyTimeOffRequest = () => {
+    setEditingPtoRequestId('');
+    setPtoRequestDraft(buildPtoRequestDraft());
+    setShowPtoRequestForm(false);
+  };
+
+  const saveMyTimeOffRequest = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!myEmployee) {
       alert('Your login is not linked to an employee profile yet.');
@@ -1292,31 +1328,80 @@ const Dashboard: React.FC = () => {
       }
     }
 
+    const payload = {
+      request_type: requestType,
+      start_date: ptoRequestDraft.start_date,
+      end_date: ptoRequestDraft.end_date,
+      hours: requestHours,
+      notes: ptoRequestDraft.notes.trim() || null,
+    };
+
     setSavingAction(true);
     try {
-      const { error } = await supabase.from('workforce_time_off_requests').insert([
-        {
-          employee_id: myEmployee.id,
-          request_type: requestType,
-          start_date: ptoRequestDraft.start_date,
-          end_date: ptoRequestDraft.end_date,
-          hours: requestHours,
-          status: 'pending',
-          notes: ptoRequestDraft.notes.trim() || null,
-        },
-      ]);
-      if (error) throw error;
+      if (editingPtoRequestId) {
+        const existing = timeOffRequests.find((request) => request.id === editingPtoRequestId);
+        if (!existing || existing.employee_id !== myEmployee.id) {
+          throw new Error('You can only edit your own request.');
+        }
 
+        const nextStatus =
+          normalizeTimeOffStatus(existing.status) === 'approved'
+            ? 'pending'
+            : normalizeTimeOffStatus(existing.status);
+
+        const { error } = await supabase
+          .from('workforce_time_off_requests')
+          .update({
+            ...payload,
+            status: nextStatus,
+          })
+          .eq('id', editingPtoRequestId)
+          .eq('employee_id', myEmployee.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('workforce_time_off_requests').insert([
+          {
+            employee_id: myEmployee.id,
+            ...payload,
+            status: 'pending',
+          },
+        ]);
+        if (error) throw error;
+      }
+
+      setEditingPtoRequestId('');
       setShowPtoRequestForm(false);
-      setPtoRequestDraft({
-        request_type: 'pto',
-        start_date: new Date().toISOString().slice(0, 10),
-        end_date: new Date().toISOString().slice(0, 10),
-        notes: '',
-      });
+      setPtoRequestDraft(buildPtoRequestDraft());
       await refreshAfterAction();
     } catch (error) {
-      alert(`Failed to submit request: ${(error as Error).message}`);
+      alert(`Failed to save request: ${(error as Error).message}`);
+    } finally {
+      setSavingAction(false);
+    }
+  };
+
+  const deleteMyTimeOffRequest = async (request: WorkforceTimeOffRequest) => {
+    if (!myEmployee || request.employee_id !== myEmployee.id) {
+      alert('You can only delete your own request.');
+      return;
+    }
+    if (!window.confirm('Delete this PTO request?')) return;
+
+    setSavingAction(true);
+    try {
+      const { error } = await supabase
+        .from('workforce_time_off_requests')
+        .delete()
+        .eq('id', request.id)
+        .eq('employee_id', myEmployee.id);
+      if (error) throw error;
+
+      if (editingPtoRequestId === request.id) {
+        cancelEditMyTimeOffRequest();
+      }
+      await refreshAfterAction();
+    } catch (error) {
+      alert(`Failed to delete request: ${(error as Error).message}`);
     } finally {
       setSavingAction(false);
     }
@@ -1860,11 +1945,19 @@ const Dashboard: React.FC = () => {
                   {myEmployee && (
                     <button
                       type="button"
-                      onClick={() => setShowPtoRequestForm((current) => !current)}
+                      onClick={() => {
+                        if (showPtoRequestForm && !editingPtoRequestId) {
+                          setShowPtoRequestForm(false);
+                          return;
+                        }
+                        setEditingPtoRequestId('');
+                        setPtoRequestDraft(buildPtoRequestDraft());
+                        setShowPtoRequestForm(true);
+                      }}
                       className="inline-flex items-center gap-1 px-3 py-1.5 border border-ocean-200 rounded-md text-ocean-700 hover:bg-ocean-50 text-sm"
                     >
                       <Plus className="h-4 w-4" />
-                      Request More Time
+                      {showPtoRequestForm && !editingPtoRequestId ? 'Close' : 'Request More Time'}
                     </button>
                   )}
                 </div>
@@ -1876,7 +1969,7 @@ const Dashboard: React.FC = () => {
                 )}
 
                 {showPtoRequestForm && myEmployee && (
-                  <form onSubmit={(event) => void createMyTimeOffRequest(event)} className="mb-3 grid gap-2 bg-gray-50 border border-gray-100 rounded-lg p-3">
+                  <form onSubmit={(event) => void saveMyTimeOffRequest(event)} className="mb-3 grid gap-2 bg-gray-50 border border-gray-100 rounded-lg p-3">
                     <div className="grid grid-cols-2 gap-2">
                       <select
                         value={ptoRequestDraft.request_type}
@@ -1891,6 +1984,11 @@ const Dashboard: React.FC = () => {
                         {myPtoUnit === 'days' ? 'd' : 'h'}
                       </div>
                     </div>
+                    {editingPtoRequest && normalizeTimeOffStatus(editingPtoRequest.status) === 'approved' && (
+                      <div className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-md px-2 py-1.5">
+                        Editing an approved request will set it back to pending for review.
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         type="date"
@@ -1922,7 +2020,15 @@ const Dashboard: React.FC = () => {
                       disabled={savingAction || draftRequestedDays <= 0}
                       className="px-3 py-2 bg-ocean-600 text-white rounded-lg hover:bg-ocean-700 disabled:opacity-60"
                     >
-                      Submit Request
+                      {editingPtoRequestId ? 'Save Changes' : 'Submit Request'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => cancelEditMyTimeOffRequest()}
+                      disabled={savingAction}
+                      className="px-3 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-100 disabled:opacity-60"
+                    >
+                      Cancel
                     </button>
                   </form>
                 )}
@@ -1960,6 +2066,24 @@ const Dashboard: React.FC = () => {
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium uppercase ${toneClass}`}>
                             {status}
                           </span>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => beginEditMyTimeOffRequest(request)}
+                            disabled={savingAction}
+                            className="px-2 py-1 text-xs rounded-md border border-gray-200 text-gray-700 hover:bg-gray-100 disabled:opacity-60"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void deleteMyTimeOffRequest(request)}
+                            disabled={savingAction}
+                            className="px-2 py-1 text-xs rounded-md border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-60"
+                          >
+                            Delete
+                          </button>
                         </div>
                       </div>
                     );
