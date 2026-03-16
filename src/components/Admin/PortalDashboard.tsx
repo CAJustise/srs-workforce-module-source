@@ -49,7 +49,7 @@ const PortalDashboard: React.FC<PortalDashboardProps> = ({ portal }) => {
         }
 
         const roleIds = await getRoleIdsForUser(session.user.id);
-        const teamMember = await getTeamMemberForUser(session.user.id);
+        const teamMember = await getTeamMemberForUser(session.user.id, String(session.user.email || ''));
         const nextCapabilities = derivePortalCapabilities(roleIds, teamMember);
 
         if (active) {

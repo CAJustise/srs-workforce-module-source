@@ -43,6 +43,7 @@ VITE_USE_REMOTE_SUPABASE=false
 VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
 VITE_SUPABASE_SERVICE_ROLE_KEY=
+VITE_WORKFORCE_ALLOW_AUTH_ADMIN_SYNC=false
 ```
 
 For production/shared environments, set:
@@ -50,7 +51,13 @@ For production/shared environments, set:
 - `VITE_USE_REMOTE_SUPABASE=true`
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
-- `VITE_SUPABASE_SERVICE_ROLE_KEY` (needed for auth admin actions in Team Members flows)
+- `VITE_SUPABASE_SERVICE_ROLE_KEY` only if you intentionally enable auth-admin sync flows
+- `VITE_WORKFORCE_ALLOW_AUTH_ADMIN_SYNC=true` only when you want Team Members to create/update auth users
+
+Default integration assumes your CS dashboard already has company-email login. Workforce identity resolves by:
+
+1. `auth.uid()` link (`workforce_employees.user_id`, `team_members.user_id`)
+2. Email fallback match (`workforce_employees.email`, `team_members.email`)
 
 ## What This Module Includes
 
@@ -63,6 +70,8 @@ For production/shared environments, set:
   - Today’s Schedule by Department
   - PTO Requests card (request button + future request list with approval status)
   - Today PTO request list is scoped to the logged-in employee only
+  - PTO notifications feed (submitted/edited/deleted/approved/denied)
+  - Missed punch digest card
   - Logged-in employee can edit/delete only their own requests
   - If an approved request is edited, its status resets to `pending`
   - PTO request amount auto-calculated from selected date range (no manual amount entry)
@@ -75,18 +84,31 @@ For production/shared environments, set:
   - Timezone view control (`View by time zone`): US timezone dropdown + Local
 - Team Members:
   - Scheduler (week/day views)
+  - PTO conflict detection when scheduling
+  - Supervisor override reason required for shifts overlapping approved PTO
   - Clock In Logs (30-day adjustments)
   - Time Off + PTO with request status review dropdown (`pending`, `approved`, `denied`)
+  - Denial note required when status is set to `denied`
+  - PTO audit trail with actor + timestamp + status notes
   - Supervisor request list ordered by status: `pending` first, then `approved`, then `denied`
   - Team member profiles + documents
   - Role library and role ordering
 - Log Archive:
   - Snapshot history (up to 365 days target retention)
 
+## Out of Scope
+
+- Payroll/W-2 export workflows are intentionally excluded for this 1099-oriented rollout.
+
 ## Current Guardrails Implemented
 
 - Supervisor-only task verification:
   - `Verified By Supervisor` is enabled only when `team_members.can_manage_schedule = true`.
+- PTO request guardrails:
+  - Self-service create/update cannot auto-approve.
+  - Any employee edit to an approved request resets it to `pending`.
+- SQL/RLS auth mapping:
+  - RLS helper functions resolve employee/team rows by `auth.uid()` first, then company email fallback.
 - Task lifecycle:
   - Open overdue tasks are red.
   - Completed but unverified tasks are green.

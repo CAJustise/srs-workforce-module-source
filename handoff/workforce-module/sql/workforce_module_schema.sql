@@ -29,6 +29,9 @@ create table if not exists team_members (
   updated_at timestamptz not null default now()
 );
 
+create index if not exists team_members_email_lower_idx
+  on team_members ((lower(email)));
+
 create table if not exists admin_user_roles (
   id text primary key default ('aur_' || gen_random_uuid()::text),
   user_id text not null,
@@ -105,6 +108,9 @@ create table if not exists workforce_employees (
 create index if not exists workforce_employees_user_id_idx
   on workforce_employees (user_id);
 
+create index if not exists workforce_employees_email_lower_idx
+  on workforce_employees ((lower(email)));
+
 create table if not exists workforce_employee_roles (
   id text primary key default ('wf_er_' || gen_random_uuid()::text),
   employee_id text not null references workforce_employees(id) on delete cascade,
@@ -139,6 +145,7 @@ create table if not exists workforce_shifts (
   end_time timestamptz not null,
   break_rules text,
   wage_rate numeric(10,2) default 0,
+  override_reason text,
   hours_scheduled numeric(10,2),
   status text default 'published',
   published_by text,
@@ -210,12 +217,15 @@ create index if not exists workforce_breaks_punch_start_idx
 create table if not exists workforce_time_off_requests (
   id text primary key default ('wf_to_req_' || gen_random_uuid()::text),
   employee_id text not null references workforce_employees(id) on delete cascade,
-  request_type text not null default 'day_off',
+  request_type text not null default 'pto',
   start_date date not null,
   end_date date not null,
   hours numeric(10,2),
   status text not null default 'pending',
   notes text,
+  status_note text,
+  status_updated_by text,
+  status_updated_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -341,6 +351,22 @@ create table if not exists workforce_events (
 create index if not exists workforce_events_timestamp_idx
   on workforce_events (timestamp desc);
 
+-- Backward-compatible column additions for existing installs.
+alter table if exists workforce_shifts
+  add column if not exists override_reason text;
+
+alter table if exists workforce_time_off_requests
+  add column if not exists status_note text;
+
+alter table if exists workforce_time_off_requests
+  add column if not exists status_updated_by text;
+
+alter table if exists workforce_time_off_requests
+  add column if not exists status_updated_at timestamptz;
+
+alter table if exists workforce_time_off_requests
+  alter column request_type set default 'pto';
+
 create table if not exists workforce_dashboard_snapshots (
   id text primary key default ('wf_snap_' || gen_random_uuid()::text),
   snapshot_type text not null default 'log_archive_daily',
@@ -352,6 +378,342 @@ create table if not exists workforce_dashboard_snapshots (
 
 create index if not exists workforce_dashboard_snapshots_date_idx
   on workforce_dashboard_snapshots (snapshot_date desc, snapshot_type);
+
+-- ============================================================================
+-- RLS + guardrails (Supabase auth.uid() based)
+-- ============================================================================
+
+create or replace function public.current_workforce_employee_id()
+returns text
+language sql
+stable
+as $$
+  select e.id
+  from workforce_employees e
+  where (
+    (auth.uid() is not null and e.user_id = auth.uid()::text)
+    or (
+      coalesce(auth.jwt() ->> 'email', '') <> ''
+      and lower(coalesce(e.email, '')) = lower(auth.jwt() ->> 'email')
+    )
+  )
+  order by
+    case when auth.uid() is not null and e.user_id = auth.uid()::text then 0 else 1 end,
+    e.created_at desc
+  limit 1
+$$;
+
+create or replace function public.current_team_can_manage_schedule()
+returns boolean
+language sql
+stable
+as $$
+  select exists (
+    select 1
+    from team_members tm
+    where (
+      (auth.uid() is not null and tm.user_id = auth.uid()::text)
+      or (
+        coalesce(auth.jwt() ->> 'email', '') <> ''
+        and lower(coalesce(tm.email, '')) = lower(auth.jwt() ->> 'email')
+      )
+    )
+      and tm.active = true
+      and tm.can_manage_schedule = true
+  )
+$$;
+
+-- Time-off: employees can only touch their own rows; supervisors can manage all.
+alter table workforce_time_off_requests enable row level security;
+drop policy if exists workforce_time_off_requests_select on workforce_time_off_requests;
+create policy workforce_time_off_requests_select on workforce_time_off_requests
+for select
+using (
+  employee_id = public.current_workforce_employee_id()
+  or public.current_team_can_manage_schedule()
+);
+
+drop policy if exists workforce_time_off_requests_insert on workforce_time_off_requests;
+create policy workforce_time_off_requests_insert on workforce_time_off_requests
+for insert
+with check (
+  employee_id = public.current_workforce_employee_id()
+  or public.current_team_can_manage_schedule()
+);
+
+drop policy if exists workforce_time_off_requests_update on workforce_time_off_requests;
+create policy workforce_time_off_requests_update on workforce_time_off_requests
+for update
+using (
+  employee_id = public.current_workforce_employee_id()
+  or public.current_team_can_manage_schedule()
+)
+with check (
+  employee_id = public.current_workforce_employee_id()
+  or public.current_team_can_manage_schedule()
+);
+
+drop policy if exists workforce_time_off_requests_delete on workforce_time_off_requests;
+create policy workforce_time_off_requests_delete on workforce_time_off_requests
+for delete
+using (
+  employee_id = public.current_workforce_employee_id()
+  or public.current_team_can_manage_schedule()
+);
+
+-- PTO balances: readable by owner/supervisor; writable by owner/supervisor for self-service flows.
+alter table workforce_pto_balances enable row level security;
+drop policy if exists workforce_pto_balances_select on workforce_pto_balances;
+create policy workforce_pto_balances_select on workforce_pto_balances
+for select
+using (
+  employee_id = public.current_workforce_employee_id()
+  or public.current_team_can_manage_schedule()
+);
+
+drop policy if exists workforce_pto_balances_insert on workforce_pto_balances;
+create policy workforce_pto_balances_insert on workforce_pto_balances
+for insert
+with check (
+  employee_id = public.current_workforce_employee_id()
+  or public.current_team_can_manage_schedule()
+);
+
+drop policy if exists workforce_pto_balances_update on workforce_pto_balances;
+create policy workforce_pto_balances_update on workforce_pto_balances
+for update
+using (
+  employee_id = public.current_workforce_employee_id()
+  or public.current_team_can_manage_schedule()
+)
+with check (
+  employee_id = public.current_workforce_employee_id()
+  or public.current_team_can_manage_schedule()
+);
+
+drop policy if exists workforce_pto_balances_delete on workforce_pto_balances;
+create policy workforce_pto_balances_delete on workforce_pto_balances
+for delete
+using (
+  employee_id = public.current_workforce_employee_id()
+  or public.current_team_can_manage_schedule()
+);
+
+-- Schedule rows: employees read their own; supervisors create/manage all.
+alter table workforce_shifts enable row level security;
+drop policy if exists workforce_shifts_select on workforce_shifts;
+create policy workforce_shifts_select on workforce_shifts
+for select
+using (
+  employee_id = public.current_workforce_employee_id()
+  or public.current_team_can_manage_schedule()
+);
+
+drop policy if exists workforce_shifts_insert on workforce_shifts;
+create policy workforce_shifts_insert on workforce_shifts
+for insert
+with check (public.current_team_can_manage_schedule());
+
+drop policy if exists workforce_shifts_update on workforce_shifts;
+create policy workforce_shifts_update on workforce_shifts
+for update
+using (public.current_team_can_manage_schedule())
+with check (public.current_team_can_manage_schedule());
+
+drop policy if exists workforce_shifts_delete on workforce_shifts;
+create policy workforce_shifts_delete on workforce_shifts
+for delete
+using (public.current_team_can_manage_schedule());
+
+-- Punches: employees can manage their own; supervisors can manage all.
+alter table workforce_punches enable row level security;
+drop policy if exists workforce_punches_select on workforce_punches;
+create policy workforce_punches_select on workforce_punches
+for select
+using (
+  employee_id = public.current_workforce_employee_id()
+  or public.current_team_can_manage_schedule()
+);
+
+drop policy if exists workforce_punches_insert on workforce_punches;
+create policy workforce_punches_insert on workforce_punches
+for insert
+with check (
+  employee_id = public.current_workforce_employee_id()
+  or public.current_team_can_manage_schedule()
+);
+
+drop policy if exists workforce_punches_update on workforce_punches;
+create policy workforce_punches_update on workforce_punches
+for update
+using (
+  employee_id = public.current_workforce_employee_id()
+  or public.current_team_can_manage_schedule()
+)
+with check (
+  employee_id = public.current_workforce_employee_id()
+  or public.current_team_can_manage_schedule()
+);
+
+drop policy if exists workforce_punches_delete on workforce_punches;
+create policy workforce_punches_delete on workforce_punches
+for delete
+using (
+  employee_id = public.current_workforce_employee_id()
+  or public.current_team_can_manage_schedule()
+);
+
+-- Breaks: scoped via linked punch ownership.
+alter table workforce_breaks enable row level security;
+drop policy if exists workforce_breaks_select on workforce_breaks;
+create policy workforce_breaks_select on workforce_breaks
+for select
+using (
+  public.current_team_can_manage_schedule()
+  or exists (
+    select 1
+    from workforce_punches p
+    where p.id = workforce_breaks.punch_id
+      and p.employee_id = public.current_workforce_employee_id()
+  )
+);
+
+drop policy if exists workforce_breaks_insert on workforce_breaks;
+create policy workforce_breaks_insert on workforce_breaks
+for insert
+with check (
+  public.current_team_can_manage_schedule()
+  or exists (
+    select 1
+    from workforce_punches p
+    where p.id = workforce_breaks.punch_id
+      and p.employee_id = public.current_workforce_employee_id()
+  )
+);
+
+drop policy if exists workforce_breaks_update on workforce_breaks;
+create policy workforce_breaks_update on workforce_breaks
+for update
+using (
+  public.current_team_can_manage_schedule()
+  or exists (
+    select 1
+    from workforce_punches p
+    where p.id = workforce_breaks.punch_id
+      and p.employee_id = public.current_workforce_employee_id()
+  )
+)
+with check (
+  public.current_team_can_manage_schedule()
+  or exists (
+    select 1
+    from workforce_punches p
+    where p.id = workforce_breaks.punch_id
+      and p.employee_id = public.current_workforce_employee_id()
+  )
+);
+
+drop policy if exists workforce_breaks_delete on workforce_breaks;
+create policy workforce_breaks_delete on workforce_breaks
+for delete
+using (
+  public.current_team_can_manage_schedule()
+  or exists (
+    select 1
+    from workforce_punches p
+    where p.id = workforce_breaks.punch_id
+      and p.employee_id = public.current_workforce_employee_id()
+  )
+);
+
+-- Event ledger: supervisors can view all; employees can view own PTO events.
+alter table workforce_events enable row level security;
+drop policy if exists workforce_events_select on workforce_events;
+create policy workforce_events_select on workforce_events
+for select
+using (
+  public.current_team_can_manage_schedule()
+  or actor_id = auth.uid()::text
+  or (
+    subject_type = 'time_off_request'
+    and coalesce(metadata_json->>'employee_id', '') = coalesce(public.current_workforce_employee_id(), '')
+  )
+);
+
+drop policy if exists workforce_events_insert on workforce_events;
+create policy workforce_events_insert on workforce_events
+for insert
+with check (
+  auth.uid() is not null
+  and (
+    actor_id is null
+    or actor_id = auth.uid()::text
+    or public.current_team_can_manage_schedule()
+  )
+);
+
+-- Self-service guardrail: employee edits never auto-approve and approved edits reset to pending.
+create or replace function public.enforce_time_off_request_guardrails()
+returns trigger
+language plpgsql
+as $$
+declare
+  can_manage boolean := public.current_team_can_manage_schedule();
+begin
+  if tg_op = 'INSERT' then
+    if not can_manage then
+      new.status := 'pending';
+      new.status_note := null;
+      new.status_updated_by := null;
+      new.status_updated_at := null;
+    end if;
+    new.updated_at := now();
+    return new;
+  end if;
+
+  if tg_op = 'UPDATE' then
+    if not can_manage then
+      if new.employee_id is distinct from old.employee_id then
+        raise exception 'Employees may only edit their own request.';
+      end if;
+
+      if old.status = 'approved' and (
+        new.start_date is distinct from old.start_date
+        or new.end_date is distinct from old.end_date
+        or coalesce(new.hours, 0) is distinct from coalesce(old.hours, 0)
+        or coalesce(new.request_type, '') is distinct from coalesce(old.request_type, '')
+        or coalesce(new.notes, '') is distinct from coalesce(old.notes, '')
+      ) then
+        new.status := 'pending';
+      end if;
+
+      if new.status is distinct from old.status then
+        new.status := 'pending';
+      end if;
+
+      new.status_note := old.status_note;
+      new.status_updated_by := old.status_updated_by;
+      new.status_updated_at := old.status_updated_at;
+    else
+      if new.status is distinct from old.status then
+        new.status_updated_by := coalesce(new.status_updated_by, auth.uid()::text);
+        new.status_updated_at := coalesce(new.status_updated_at, now());
+      end if;
+    end if;
+
+    new.updated_at := now();
+    return new;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_enforce_time_off_request_guardrails on workforce_time_off_requests;
+create trigger trg_enforce_time_off_request_guardrails
+before insert or update on workforce_time_off_requests
+for each row
+execute function public.enforce_time_off_request_guardrails();
 
 -- Minimal lookup seed (safe, no sample employee rows).
 insert into workforce_locations (id, name, timezone, active)
@@ -392,4 +754,3 @@ begin
 end $$;
 
 commit;
-

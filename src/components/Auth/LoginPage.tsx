@@ -28,7 +28,10 @@ const LoginPage: React.FC = () => {
       if (!data.session) throw new Error('No session after login.');
 
       const roleIds = await getRoleIdsForUser(data.session.user.id);
-      const teamMember = await getTeamMemberForUser(data.session.user.id);
+      const teamMember = await getTeamMemberForUser(
+        data.session.user.id,
+        String(data.session.user.email || email || ''),
+      );
       const capabilities = derivePortalCapabilities(roleIds, teamMember);
 
       if (!hasAnySectionAccess(capabilities)) {

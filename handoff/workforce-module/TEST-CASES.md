@@ -41,6 +41,8 @@ Use this checklist as definition of done for implementation.
 18. Approved time-off requests are reflected in Today schedule displays (highlighted cells/labels).
 19. Logged-in employee can edit/delete only their own requests.
 20. Editing an approved request resets status to `pending`.
+21. Missed Punch Digest card shows same-day missed/no-show summaries.
+22. PTO Notifications list shows submitted/edited/deleted/approved/denied events for the logged-in employee.
 
 ## C. Task Board
 
@@ -63,6 +65,9 @@ Use this checklist as definition of done for implementation.
 6. Time Off + PTO no longer shows a request-creation button/form.
 7. Supervisor request list is ordered by status: `pending` first, then `approved`, then `denied`.
 8. Approved time-off requests are reflected in Team schedule displays (highlighted cells/labels).
+9. Denying a PTO request requires a note.
+10. Scheduling a shift that overlaps approved PTO requires an override reason.
+11. PTO Audit Trail shows actor, timestamp, status change, and note details.
 
 ## E. Log Archive
 
@@ -79,3 +84,4 @@ Use this checklist as definition of done for implementation.
 1. Inactive team member cannot access module pages.
 2. Non-workforce users cannot access Team Members / Log Archive.
 3. Supervisor-only controls are locked for non-supervisors.
+4. Auth/session mapping recognizes users by `auth.uid()` and also by company email fallback.

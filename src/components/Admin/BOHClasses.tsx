@@ -242,7 +242,7 @@ const BOHClasses: React.FC<BOHClassesProps> = ({
         if (!session?.user?.id) return;
 
         const roleIds = await getRoleIdsForUser(session.user.id);
-        const teamMember = await getTeamMemberForUser(session.user.id);
+        const teamMember = await getTeamMemberForUser(session.user.id, String(session.user.email || ''));
         const capabilities = derivePortalCapabilities(roleIds, teamMember);
 
         if (active) {

@@ -111,6 +111,7 @@ interface WorkforceShift {
   end_time: string;
   wage_rate?: number;
   status?: string;
+  override_reason?: string | null;
 }
 
 interface WorkforcePunch {
@@ -204,7 +205,11 @@ interface WorkforceTimeOffRequest {
   hours?: number;
   status?: 'pending' | 'approved' | 'denied' | string;
   notes?: string;
+  status_note?: string;
+  status_updated_by?: string;
+  status_updated_at?: string;
   created_at?: string;
+  updated_at?: string;
 }
 
 interface WorkforcePtoBalance {
@@ -413,6 +418,27 @@ const timeOffStatusRank = (value: unknown) => {
   return 2;
 };
 
+const formatTimeOffTypeLabel = (value: unknown) => {
+  const next = String(value || '').trim().toLowerCase();
+  if (next === 'pto') return 'PTO';
+  if (next === 'sick') return 'Sick';
+  if (next === 'day_off') return 'Day Off';
+  return 'Time Off';
+};
+
+const parseEventMetadata = (raw: unknown): Record<string, unknown> => {
+  if (!raw) return {};
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  }
+  return raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+};
+
 const toJsonText = (value: unknown) => {
   if (typeof value === 'string') return value;
   if (value === null || value === undefined) return '';
@@ -545,6 +571,7 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
   const [creatingRole, setCreatingRole] = useState(false);
 
   const [actorUserId, setActorUserId] = useState('system');
+  const [actorEmail, setActorEmail] = useState('');
   const [actorName, setActorName] = useState('Manager');
   const [scheduleView, setScheduleView] = useState<ScheduleViewMode>('week');
   const [scheduleTimeDisplayMode, setScheduleTimeDisplayMode] = useState<ScheduleTimeDisplayMode>(() =>
@@ -555,6 +582,7 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
   const [draggingShiftId, setDraggingShiftId] = useState<string | null>(null);
   const [editingShiftId, setEditingShiftId] = useState('');
   const localScheduleTimeZone = useMemo(() => getScheduleLocalTimeZone(), []);
+  const allowAuthAdminSync = String(import.meta.env.VITE_WORKFORCE_ALLOW_AUTH_ADMIN_SYNC || '').toLowerCase() === 'true';
 
   const [employeeDraft, setEmployeeDraft] = useState(() => buildEmployeeDraft());
   const [employeeRoleDrafts, setEmployeeRoleDrafts] = useState<Array<ReturnType<typeof buildRoleRateDraft>>>([]);
@@ -725,6 +753,7 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
 
         if (session?.user?.id) {
           setActorUserId(session.user.id);
+          setActorEmail(String(session.user.email || ''));
           setActorName(String(session.user.email || 'Manager'));
         }
 
@@ -877,6 +906,27 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
     [employees],
   );
 
+  const employeeByEmail = useMemo(
+    () =>
+      employees.reduce((accumulator, employee) => {
+        const key = String(employee.email || '').trim().toLowerCase();
+        if (!key || accumulator[key]) return accumulator;
+        accumulator[key] = employee;
+        return accumulator;
+      }, {} as Record<string, WorkforceEmployee>),
+    [employees],
+  );
+
+  const employeeByUserId = useMemo(
+    () =>
+      employees.reduce((accumulator, employee) => {
+        if (!employee.user_id) return accumulator;
+        accumulator[String(employee.user_id)] = employee;
+        return accumulator;
+      }, {} as Record<string, WorkforceEmployee>),
+    [employees],
+  );
+
   const stationById = useMemo(
     () =>
       stations.reduce((accumulator, station) => {
@@ -896,7 +946,20 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
     [teamMembers],
   );
 
-  const actorTeamMember = teamMemberByUserId[actorUserId];
+  const teamMemberByEmail = useMemo(
+    () =>
+      teamMembers.reduce((accumulator, member) => {
+        const key = String(member.email || '').trim().toLowerCase();
+        if (!key || accumulator[key]) return accumulator;
+        accumulator[key] = member;
+        return accumulator;
+      }, {} as Record<string, TeamMemberPermissions>),
+    [teamMembers],
+  );
+
+  const actorTeamMember =
+    teamMemberByUserId[actorUserId] ||
+    (actorEmail ? teamMemberByEmail[actorEmail.trim().toLowerCase()] : undefined);
   const actorCanManageSchedule = actorTeamMember
     ? Boolean(actorTeamMember.can_manage_schedule || actorTeamMember.can_access_workforce)
     : true;
@@ -1111,11 +1174,11 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
     [shifts],
   );
 
-  const approvedTimeOffDatesByEmployee = useMemo(() => {
-    const accumulator: Record<string, Set<string>> = {};
+  const approvedTimeOffRequestsByEmployeeDate = useMemo(() => {
+    const accumulator: Record<string, WorkforceTimeOffRequest[]> = {};
 
     timeOffRequests.forEach((request) => {
-      const status = String(request.status || 'pending').toLowerCase();
+      const status = normalizeTimeOffStatus(request.status);
       if (status !== 'approved') return;
       if (!request.employee_id || !request.start_date || !request.end_date) return;
 
@@ -1123,19 +1186,59 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
       const end = fromDateKey(request.end_date);
       if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
 
-      if (!accumulator[request.employee_id]) {
-        accumulator[request.employee_id] = new Set<string>();
-      }
-
       const cursor = new Date(start);
       while (cursor.getTime() <= end.getTime()) {
-        accumulator[request.employee_id].add(formatDateKey(cursor));
+        const key = `${request.employee_id}::${formatDateKey(cursor)}`;
+        if (!accumulator[key]) {
+          accumulator[key] = [];
+        }
+        accumulator[key].push(request);
         cursor.setDate(cursor.getDate() + 1);
       }
     });
 
     return accumulator;
   }, [timeOffRequests]);
+
+  const approvedTimeOffDatesByEmployee = useMemo(() => {
+    const accumulator: Record<string, Set<string>> = {};
+    Object.keys(approvedTimeOffRequestsByEmployeeDate).forEach((key) => {
+      const [employeeId, dateKey] = key.split('::');
+      if (!employeeId || !dateKey) return;
+      if (!accumulator[employeeId]) {
+        accumulator[employeeId] = new Set<string>();
+      }
+      accumulator[employeeId].add(dateKey);
+    });
+    return accumulator;
+  }, [approvedTimeOffRequestsByEmployeeDate]);
+
+  const getApprovedTimeOffConflictsForShift = useCallback(
+    (employeeId: string, startAt: string, endAt: string) => {
+      const startDate = new Date(startAt);
+      const endDate = new Date(endAt);
+      if (!employeeId || Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return [];
+
+      const startDay = fromDateKey(formatDateKey(startDate));
+      const endDay = fromDateKey(formatDateKey(endDate));
+      if (Number.isNaN(startDay.getTime()) || Number.isNaN(endDay.getTime())) return [];
+
+      const requestById: Record<string, WorkforceTimeOffRequest> = {};
+      const cursor = new Date(startDay);
+      while (cursor.getTime() <= endDay.getTime()) {
+        const key = `${employeeId}::${formatDateKey(cursor)}`;
+        (approvedTimeOffRequestsByEmployeeDate[key] || []).forEach((request) => {
+          requestById[request.id] = request;
+        });
+        cursor.setDate(cursor.getDate() + 1);
+      }
+
+      return Object.values(requestById).sort((a, b) =>
+        `${a.start_date}${a.end_date}`.localeCompare(`${b.start_date}${b.end_date}`),
+      );
+    },
+    [approvedTimeOffRequestsByEmployeeDate],
+  );
 
   const activeTimeOffBlocks = useMemo(
     () =>
@@ -1162,6 +1265,54 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
         .slice(0, 8),
     [activeCompanyHolidays, today],
   );
+
+  const ptoAuditTrailEntries = useMemo(() => {
+    const entries = events
+      .filter((event) => String(event.subject_type || '') === 'time_off_request')
+      .map((event) => {
+        const metadata = parseEventMetadata(event.metadata_json);
+        const status = normalizeTimeOffStatus(metadata.status);
+        const previousStatus = normalizeTimeOffStatus(metadata.previous_status);
+        const employeeName =
+          String(metadata.employee_name || '') ||
+          employeeById[String(metadata.employee_id || '')]?.name ||
+          'Employee';
+        const actorLookupId = String(event.actor_id || '');
+        const actorName =
+          teamMemberByUserId[actorLookupId]?.name ||
+          employeeByUserId[actorLookupId]?.name ||
+          actorLookupId ||
+          'System';
+
+        let summary = event.event_type;
+        if (event.event_type === 'TIME_OFF_REQUEST_SUBMITTED') {
+          summary = `${employeeName} submitted a ${formatTimeOffTypeLabel(metadata.request_type)} request.`;
+        } else if (event.event_type === 'TIME_OFF_REQUEST_STATUS_UPDATED') {
+          summary = `${employeeName} status changed ${previousStatus} -> ${status}.`;
+        } else if (event.event_type === 'TIME_OFF_REQUEST_EDITED_PENDING') {
+          summary = `${employeeName} edited request and reset to pending.`;
+        } else if (event.event_type === 'TIME_OFF_REQUEST_DELETED') {
+          summary = `${employeeName} deleted a request.`;
+        }
+
+        return {
+          id: event.id,
+          summary,
+          actorName,
+          status,
+          previousStatus,
+          statusNote: String(metadata.status_note || ''),
+          requestType: formatTimeOffTypeLabel(metadata.request_type),
+          startDate: String(metadata.start_date || ''),
+          endDate: String(metadata.end_date || ''),
+          timestamp: event.timestamp,
+        };
+      })
+      .sort((a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || '')))
+      .slice(0, 24);
+
+    return entries;
+  }, [employeeById, employeeByUserId, events, teamMemberByUserId]);
 
   const todayKey = today.toISOString().slice(0, 10);
 
@@ -2090,11 +2241,30 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
     const loginUsername = employeeDraft.login_username.trim() || fallbackEmail.trim();
     const loginPassword = employeeDraft.login_password.trim();
     let nextUserId = String(editingEmployee?.user_id || '').trim();
+    const normalizedLoginUsername = loginUsername.trim().toLowerCase();
+
+    if (!nextUserId && normalizedLoginUsername) {
+      const existingTeamMember = teamMembers.find(
+        (member) => String(member.email || '').trim().toLowerCase() === normalizedLoginUsername,
+      );
+      if (existingTeamMember?.user_id) {
+        nextUserId = String(existingTeamMember.user_id);
+      } else if (employeeByEmail[normalizedLoginUsername]?.user_id) {
+        nextUserId = String(employeeByEmail[normalizedLoginUsername].user_id || '');
+      }
+    }
 
     if (!loginUsername) {
       return {
         userId: nextUserId,
         loginUsername: '',
+      };
+    }
+
+    if (!allowAuthAdminSync) {
+      return {
+        userId: nextUserId,
+        loginUsername,
       };
     }
 
@@ -2202,8 +2372,8 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
     const primaryRoleId = primaryRoleAssignment.role_id;
     const primaryRoleRate = derivedHourlyCompensation;
 
-    if (!employeeDraft.login_username.trim() && !employeeDraft.email.trim()) {
-      alert('Login username is required so this employee can access team tools.');
+    if (!employeeDraft.email.trim()) {
+      alert('Company email is required so this employee can be linked to the existing dashboard login.');
       return;
     }
 
@@ -2230,8 +2400,8 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
         compensation_monthly_hours: monthlyHours,
         availability: employeeDraft.availability.trim() || 'Open availability',
         pto_unit: normalizePtoUnit(employeeDraft.pto_unit),
-        login_username: loginUsername || null,
-        login_password: employeeDraft.login_password.trim() || null,
+        login_username: loginUsername || employeeEmail || null,
+        login_password: allowAuthAdminSync ? employeeDraft.login_password.trim() || null : null,
         attendance_score: editingEmployee?.attendance_score ?? 100,
       };
 
@@ -2460,6 +2630,43 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
     setShiftDraft(buildShiftDraft());
   };
 
+  const requestPtoOverrideReason = (
+    employeeId: string,
+    startAt: string,
+    endAt: string,
+    contextLabel: string,
+  ) => {
+    const conflicts = getApprovedTimeOffConflictsForShift(employeeId, startAt, endAt);
+    if (!conflicts.length) {
+      return {
+        conflicts: [] as WorkforceTimeOffRequest[],
+        overrideReason: '',
+      };
+    }
+
+    const employeeName = employeeById[employeeId]?.name || 'This team member';
+    const conflictSummary = conflicts
+      .map(
+        (request) =>
+          `${request.start_date} to ${request.end_date} (${formatTimeOffTypeLabel(request.request_type)})`,
+      )
+      .join('\n');
+
+    const reason = window.prompt(
+      `${employeeName} has approved time off during this ${contextLabel}:\n${conflictSummary}\n\nEnter an override reason to continue scheduling:`,
+      '',
+    );
+
+    if (!reason || !reason.trim()) {
+      return null;
+    }
+
+    return {
+      conflicts,
+      overrideReason: reason.trim(),
+    };
+  };
+
   const saveShiftDraft = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!shiftDraft.employee_id || !shiftDraft.role_id || !shiftDraft.date) {
@@ -2475,6 +2682,19 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
     const startAt = `${shiftDraft.date}T${shiftDraft.start_time}:00`;
     const endAt = `${shiftDraft.date}T${shiftDraft.end_time}:00`;
 
+    const overrideDecision = requestPtoOverrideReason(
+      shiftDraft.employee_id,
+      startAt,
+      endAt,
+      'shift',
+    );
+    if (overrideDecision === null) {
+      alert('Shift save cancelled. Override reason is required when approved time off exists.');
+      return;
+    }
+    const conflictRequestIds = overrideDecision.conflicts.map((request) => request.id);
+    const overrideReason = overrideDecision.overrideReason || null;
+
     setSaving(true);
     try {
       if (editingShiftId) {
@@ -2487,6 +2707,7 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
             start_time: startAt,
             end_time: endAt,
             wage_rate: shiftDraftCalculatedRate,
+            override_reason: overrideReason,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editingShiftId);
@@ -2497,6 +2718,8 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
           role_id: shiftDraft.role_id,
           start_time: startAt,
           end_time: endAt,
+          override_reason: overrideReason,
+          pto_conflict_request_ids: conflictRequestIds,
         });
       } else {
         const { data: shiftRow, error } = await supabase
@@ -2511,6 +2734,7 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
               end_time: endAt,
               break_rules: 'ca_standard',
               wage_rate: shiftDraftCalculatedRate,
+              override_reason: overrideReason,
               status: 'draft',
             },
           ])
@@ -2524,6 +2748,8 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
           role_id: shiftDraft.role_id,
           start_time: startAt,
           end_time: endAt,
+          override_reason: overrideReason,
+          pto_conflict_request_ids: conflictRequestIds,
         });
       }
 
@@ -2536,7 +2762,12 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
     }
   };
 
-  const createShiftCopy = async (baseShift: WorkforceShift, targetDateKey: string, targetEmployeeId?: string) => {
+  const createShiftCopy = async (
+    baseShift: WorkforceShift,
+    targetDateKey: string,
+    targetEmployeeId?: string,
+    options?: { overrideReasonForConflicts?: string | null; contextLabel?: string },
+  ) => {
     const startClock = `${toTimeLabel(baseShift.start_time)}:00`;
     const endClock = `${toTimeLabel(baseShift.end_time)}:00`;
     const startAt = toDateTime(targetDateKey, startClock);
@@ -2546,9 +2777,29 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
     const crossesMidnight = endsAtMinutes <= startsAtMinutes;
     const endDateKey = crossesMidnight ? formatDateKey(addDays(fromDateKey(targetDateKey), 1)) : targetDateKey;
     const endAt = toDateTime(endDateKey, endClock);
+    const employeeId = targetEmployeeId || baseShift.employee_id;
+
+    const conflicts = getApprovedTimeOffConflictsForShift(employeeId, startAt, endAt);
+    let overrideReason = '';
+    if (conflicts.length > 0) {
+      if (options?.overrideReasonForConflicts && options.overrideReasonForConflicts.trim()) {
+        overrideReason = options.overrideReasonForConflicts.trim();
+      } else {
+        const decision = requestPtoOverrideReason(
+          employeeId,
+          startAt,
+          endAt,
+          options?.contextLabel || 'shift copy',
+        );
+        if (!decision) {
+          throw new Error('Override reason is required when approved time off exists.');
+        }
+        overrideReason = decision.overrideReason;
+      }
+    }
 
     const payload = {
-      employee_id: targetEmployeeId || baseShift.employee_id,
+      employee_id: employeeId,
       role_id: baseShift.role_id,
       location_id: baseShift.location_id || 'wf_loc_main',
       station_id: baseShift.station_id || null,
@@ -2556,6 +2807,7 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
       end_time: endAt,
       break_rules: 'ca_standard',
       wage_rate: Number(baseShift.wage_rate || roleById[baseShift.role_id]?.hourly_rate || 24),
+      override_reason: overrideReason || null,
       status: 'draft',
     };
 
@@ -2574,6 +2826,8 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
       employee_id: payload.employee_id,
       start_time: payload.start_time,
       end_time: payload.end_time,
+      override_reason: overrideReason || null,
+      pto_conflict_request_ids: conflicts.map((request) => request.id),
     });
   };
 
@@ -2600,7 +2854,9 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
   const duplicateShiftToCell = async (shift: WorkforceShift, targetDateKey: string, targetEmployeeId?: string) => {
     setSaving(true);
     try {
-      await createShiftCopy(shift, targetDateKey, targetEmployeeId);
+      await createShiftCopy(shift, targetDateKey, targetEmployeeId, {
+        contextLabel: 'duplicated shift',
+      });
       await fetchAll();
     } catch (error) {
       alert(`Failed to duplicate shift: ${(error as Error).message}`);
@@ -2636,16 +2892,42 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
 
     setSaving(true);
     try {
-      for (const shift of sourceShifts) {
+      const plannedCopies = sourceShifts.map((shift) => {
         const sourceDate = fromDateKey(formatDateKey(new Date(shift.start_time)));
         const dayOffset = Math.round((sourceDate.getTime() - previousWeekStart.getTime()) / 86400000);
         const targetDateKey = formatDateKey(addDays(currentWeekStart, dayOffset));
-        await createShiftCopy(shift, targetDateKey, shift.employee_id);
+        return { shift, targetDateKey };
+      });
+
+      const conflictCount = plannedCopies.reduce((count, entry) => {
+        const startAt = toDateTime(entry.targetDateKey, `${toTimeLabel(entry.shift.start_time)}:00`);
+        const endAt = toDateTime(entry.targetDateKey, `${toTimeLabel(entry.shift.end_time)}:00`);
+        return count + getApprovedTimeOffConflictsForShift(entry.shift.employee_id, startAt, endAt).length;
+      }, 0);
+
+      let overrideReasonForConflicts: string | null = null;
+      if (conflictCount > 0) {
+        const reason = window.prompt(
+          `${conflictCount} approved PTO conflict(s) were found while copying the week. Enter one override reason to continue:`,
+          '',
+        );
+        if (!reason || !reason.trim()) {
+          throw new Error('Copy cancelled. Override reason is required for approved PTO conflicts.');
+        }
+        overrideReasonForConflicts = reason.trim();
+      }
+
+      for (const entry of plannedCopies) {
+        await createShiftCopy(entry.shift, entry.targetDateKey, entry.shift.employee_id, {
+          overrideReasonForConflicts,
+          contextLabel: 'copied shift',
+        });
       }
 
       await recordEvent('SCHEDULE_COPIED_PREVIOUS_WEEK', 'schedule', formatDateKey(currentWeekStart), {
         source_week_start: formatDateKey(previousWeekStart),
         shifts_copied: sourceShifts.length,
+        pto_override_reason: overrideReasonForConflicts,
       });
 
       await fetchAll();
@@ -2677,9 +2959,36 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
     try {
       const baseWeekStart = startOfWeek(scheduleWindowStart);
 
-      for (const templateShift of templateRows) {
+      const plannedTemplateCopies = templateRows.map((templateShift) => {
         const targetDate = addDays(baseWeekStart, Number(templateShift.day_offset || 0));
         const targetDateKey = formatDateKey(targetDate);
+        return { templateShift, targetDateKey };
+      });
+
+      const templateConflictCount = plannedTemplateCopies.reduce((count, entry) => {
+        const startAt = toDateTime(entry.targetDateKey, entry.templateShift.start_time);
+        const endAt = toDateTime(entry.targetDateKey, entry.templateShift.end_time);
+        return (
+          count +
+          getApprovedTimeOffConflictsForShift(entry.templateShift.employee_id, startAt, endAt).length
+        );
+      }, 0);
+
+      let overrideReasonForConflicts: string | null = null;
+      if (templateConflictCount > 0) {
+        const reason = window.prompt(
+          `${templateConflictCount} approved PTO conflict(s) were found while applying the template. Enter one override reason to continue:`,
+          '',
+        );
+        if (!reason || !reason.trim()) {
+          throw new Error('Template apply cancelled. Override reason is required for approved PTO conflicts.');
+        }
+        overrideReasonForConflicts = reason.trim();
+      }
+
+      for (const entry of plannedTemplateCopies) {
+        const templateShift = entry.templateShift;
+        const targetDateKey = entry.targetDateKey;
 
         const pseudoShift: WorkforceShift = {
           id: templateShift.id,
@@ -2693,12 +3002,16 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
           status: 'draft',
         };
 
-        await createShiftCopy(pseudoShift, targetDateKey, templateShift.employee_id);
+        await createShiftCopy(pseudoShift, targetDateKey, templateShift.employee_id, {
+          overrideReasonForConflicts,
+          contextLabel: 'template shift',
+        });
       }
 
       await recordEvent('SCHEDULE_TEMPLATE_APPLIED', 'schedule_template', selectedTemplateId, {
         week_start: formatDateKey(baseWeekStart),
         shift_count: templateRows.length,
+        pto_override_reason: overrideReasonForConflicts,
       });
 
       await fetchAll();
@@ -2790,11 +3103,35 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
     const previousStatus = String(request.status || 'pending').toLowerCase();
     if (previousStatus === status) return;
 
+    let statusNote = String(request.status_note || '').trim();
+    if (status === 'denied') {
+      const denialReason = window.prompt('Denial reason (required):', statusNote);
+      if (!denialReason || !denialReason.trim()) {
+        alert('A denial reason is required.');
+        return;
+      }
+      statusNote = denialReason.trim();
+    } else if (status === 'approved') {
+      const approvalNote = window.prompt('Approval note (optional):', statusNote);
+      if (approvalNote !== null) {
+        statusNote = approvalNote.trim();
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+    const employeeRecord = employeeById[request.employee_id];
+
     setSaving(true);
     try {
       const { error } = await supabase
         .from('workforce_time_off_requests')
-        .update({ status })
+        .update({
+          status,
+          status_note: statusNote || null,
+          status_updated_by: actorUserId,
+          status_updated_at: nowIso,
+          updated_at: nowIso,
+        })
         .eq('id', request.id);
 
       if (error) throw error;
@@ -2808,49 +3145,49 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
             : previousStatus === 'approved' && status !== 'approved'
               ? -requestHours
               : 0;
-        if (deltaHours === 0) {
-          await recordEvent('TIME_OFF_REQUEST_STATUS_UPDATED', 'time_off_request', request.id, {
-            status,
-          });
-          await fetchAll();
-          return;
-        }
+        if (deltaHours !== 0) {
+          const accrued = Number(pto?.accrued_hours || 0);
+          const used = Math.max(0, Number(pto?.used_hours || 0) + deltaHours);
+          const available = Math.max(0, accrued - used);
+          const ptoUnit = getEmployeePtoUnit(request.employee_id);
 
-        const accrued = Number(pto?.accrued_hours || 0);
-        const used = Math.max(0, Number(pto?.used_hours || 0) + deltaHours);
-        const available = Math.max(0, accrued - used);
-        const ptoUnit = getEmployeePtoUnit(request.employee_id);
-
-        if (pto?.id) {
-          const { error: ptoError } = await supabase
-            .from('workforce_pto_balances')
-            .update({
-              used_hours: used,
-              available_hours: available,
-              pto_unit: ptoUnit,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', pto.id);
-          if (ptoError) throw ptoError;
-        } else {
-          const { error: ptoInsertError } = await supabase
-            .from('workforce_pto_balances')
-            .insert([
-              {
-                employee_id: request.employee_id,
-                accrued_hours: 80,
-                used_hours: Math.max(0, deltaHours),
-                available_hours: Math.max(0, 80 - Math.max(0, deltaHours)),
+          if (pto?.id) {
+            const { error: ptoError } = await supabase
+              .from('workforce_pto_balances')
+              .update({
+                used_hours: used,
+                available_hours: available,
                 pto_unit: ptoUnit,
-                updated_at: new Date().toISOString(),
-              },
-            ]);
-          if (ptoInsertError) throw ptoInsertError;
+                updated_at: nowIso,
+              })
+              .eq('id', pto.id);
+            if (ptoError) throw ptoError;
+          } else {
+            const { error: ptoInsertError } = await supabase
+              .from('workforce_pto_balances')
+              .insert([
+                {
+                  employee_id: request.employee_id,
+                  accrued_hours: 80,
+                  used_hours: Math.max(0, deltaHours),
+                  available_hours: Math.max(0, 80 - Math.max(0, deltaHours)),
+                  pto_unit: ptoUnit,
+                  updated_at: nowIso,
+                },
+              ]);
+            if (ptoInsertError) throw ptoInsertError;
+          }
         }
       }
 
       await recordEvent('TIME_OFF_REQUEST_STATUS_UPDATED', 'time_off_request', request.id, {
+        employee_id: request.employee_id,
+        employee_name: employeeRecord?.name || 'Employee',
+        previous_status: previousStatus,
         status,
+        status_note: statusNote || null,
+        channels: ['in_app', 'email'],
+        recipient_email: employeeRecord?.email || null,
       });
       await fetchAll();
     } catch (error) {
@@ -4167,26 +4504,26 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
                 </div>
 
                 <div className="border rounded-lg p-4 space-y-3">
-                  <h4 className="font-medium text-gray-900">Login Credentials</h4>
+                  <h4 className="font-medium text-gray-900">Directory Mapping (Optional)</h4>
                   <div className="grid md:grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Login Username</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Login Email Override</label>
                       <input
                         type="email"
                         value={employeeDraft.login_username}
                         onChange={(event) => setEmployeeDraft((current) => ({ ...current, login_username: event.target.value }))}
                         className="w-full px-3 py-2 border rounded-lg"
-                        placeholder="employee@srs.local"
+                        placeholder="Uses company email when blank"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Password (Admin Sync Only)</label>
                       <input
                         type="text"
                         value={employeeDraft.login_password}
                         onChange={(event) => setEmployeeDraft((current) => ({ ...current, login_password: event.target.value }))}
                         className="w-full px-3 py-2 border rounded-lg"
-                        placeholder={employeeEditorMode === 'edit' ? 'Leave as-is or enter new password' : 'Required for new login'}
+                        placeholder={allowAuthAdminSync ? 'Used only when auth-admin sync is enabled' : 'Disabled unless auth-admin sync is enabled'}
                       />
                     </div>
                     <label className="inline-flex items-end gap-2 text-sm text-gray-700">
@@ -5180,6 +5517,9 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
                         </td>
                         <td className="px-4 py-3 text-sm">
                           <span className="capitalize text-gray-700">{normalizeTimeOffStatus(request.status)}</span>
+                          {request.status_note && (
+                            <div className="text-[11px] text-gray-500 mt-0.5">Note: {request.status_note}</div>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <select
@@ -5211,6 +5551,33 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
                 )}
               </tbody>
             </table>
+          </div>
+
+          <div className="rounded-lg border border-gray-100 p-3">
+            <div className="text-sm font-semibold text-gray-900">PTO Audit Trail</div>
+            <div className="text-xs text-gray-500 mt-0.5">
+              Status changes, edits, and deletes for review.
+            </div>
+            <div className="mt-2 space-y-2 max-h-56 overflow-y-auto pr-1">
+              {ptoAuditTrailEntries.map((entry) => (
+                <div key={entry.id} className="rounded-md border border-gray-100 bg-gray-50 px-2 py-2">
+                  <div className="text-xs font-medium text-gray-900">{entry.summary}</div>
+                  <div className="text-[11px] text-gray-600 mt-0.5">
+                    {entry.requestType}
+                    {entry.startDate && entry.endDate ? ` • ${entry.startDate} to ${entry.endDate}` : ''}
+                  </div>
+                  {entry.statusNote && (
+                    <div className="text-[11px] text-gray-700 mt-0.5">Note: {entry.statusNote}</div>
+                  )}
+                  <div className="text-[11px] text-gray-500 mt-0.5">
+                    {entry.actorName} • {formatDateTime(entry.timestamp)}
+                  </div>
+                </div>
+              ))}
+              {!ptoAuditTrailEntries.length && (
+                <div className="text-xs text-gray-500">No PTO audit events yet.</div>
+              )}
+            </div>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">

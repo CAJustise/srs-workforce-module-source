@@ -108,6 +108,7 @@ const normalizePortal = (value: unknown): BohPortal => {
 };
 
 const toUniqueRoleIds = (roleIds: string[]) => Array.from(new Set(roleIds.filter(Boolean)));
+const normalizeEmail = (value: unknown) => String(value ?? '').trim().toLowerCase();
 
 const normalizeTeamMember = (row: unknown): TeamMemberAccess | null => {
   if (!row || typeof row !== 'object') {
@@ -285,7 +286,10 @@ export const getRoleIdsForUser = async (userId: string) => {
     .filter(Boolean);
 };
 
-export const getTeamMemberForUser = async (userId: string): Promise<TeamMemberAccess | null> => {
+export const getTeamMemberForUser = async (
+  userId: string,
+  userEmail = '',
+): Promise<TeamMemberAccess | null> => {
   const { data, error } = await supabase
     .from('team_members')
     .select('*')
@@ -294,10 +298,25 @@ export const getTeamMemberForUser = async (userId: string): Promise<TeamMemberAc
 
   if (error) {
     const message = String(error.message || '').toLowerCase();
-    if (message.includes('no rows') || message.includes('0 rows')) {
-      return null;
+    if (!message.includes('no rows') && !message.includes('0 rows')) {
+      throw new Error(error.message || 'Unable to load team member permissions');
     }
-    throw new Error(error.message || 'Unable to load team member permissions');
+
+    const normalizedEmail = normalizeEmail(userEmail);
+    if (!normalizedEmail) return null;
+
+    const { data: byEmailRows, error: byEmailError } = await supabase
+      .from('team_members')
+      .select('*')
+      .ilike('email', normalizedEmail)
+      .limit(1);
+
+    if (byEmailError) {
+      throw new Error(byEmailError.message || 'Unable to load team member permissions');
+    }
+
+    const byEmail = Array.isArray(byEmailRows) ? byEmailRows[0] : null;
+    return normalizeTeamMember(byEmail);
   }
 
   return normalizeTeamMember(data);
@@ -318,7 +337,7 @@ export const getCurrentRoleResolution = async () => {
   }
 
   const roleIds = await getRoleIdsForUser(session.user.id);
-  const teamMember = await getTeamMemberForUser(session.user.id);
+  const teamMember = await getTeamMemberForUser(session.user.id, String(session.user.email || ''));
 
   return {
     session,

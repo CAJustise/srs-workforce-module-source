@@ -109,7 +109,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, requiredSection, re
         }
 
         const roleIds = await getRoleIdsForUser(session.user.id);
-        const teamMember = await getTeamMemberForUser(session.user.id);
+        const teamMember = await getTeamMemberForUser(session.user.id, String(session.user.email || ''));
         const nextCapabilities = derivePortalCapabilities(roleIds, teamMember);
 
         if (!hasAnySectionAccess(nextCapabilities)) {

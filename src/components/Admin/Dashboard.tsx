@@ -136,6 +136,16 @@ interface WorkforceCompanyHoliday {
   active?: boolean;
 }
 
+interface WorkforceEvent {
+  id: string;
+  event_type: string;
+  actor_id?: string;
+  subject_type?: string;
+  subject_id?: string;
+  timestamp: string;
+  metadata_json?: unknown;
+}
+
 interface WorkforceTimeOffRequest {
   id: string;
   employee_id: string;
@@ -416,6 +426,19 @@ const formatTimeOffTypeLabel = (value: unknown) => {
   return 'Time Off';
 };
 
+const parseEventMetadata = (raw: unknown): Record<string, unknown> => {
+  if (!raw) return {};
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  }
+  return raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+};
+
 const normalizeTimeOffStatus = (value: unknown): 'pending' | 'approved' | 'denied' => {
   const next = String(value || 'pending').trim().toLowerCase();
   if (next === 'approved') return 'approved';
@@ -458,6 +481,7 @@ const Dashboard: React.FC = () => {
   const [tasks, setTasks] = useState<WorkforceTask[]>([]);
   const [ptoBalances, setPtoBalances] = useState<WorkforcePtoBalance[]>([]);
   const [companyHolidays, setCompanyHolidays] = useState<WorkforceCompanyHoliday[]>([]);
+  const [events, setEvents] = useState<WorkforceEvent[]>([]);
   const [timeOffRequests, setTimeOffRequests] = useState<WorkforceTimeOffRequest[]>([]);
   const [timeOffBlocks, setTimeOffBlocks] = useState<WorkforceTimeOffBlock[]>([]);
   const [showLogEntryForm, setShowLogEntryForm] = useState(false);
@@ -496,7 +520,7 @@ const Dashboard: React.FC = () => {
   const loadDashboardData = useCallback(
     async (userId: string, userEmail = '') => {
       const roleIds = await getRoleIdsForUser(userId);
-      const teamMember = await getTeamMemberForUser(userId);
+      const teamMember = await getTeamMemberForUser(userId, userEmail);
       const nextCapabilities = derivePortalCapabilities(roleIds, teamMember);
 
       const [
@@ -511,6 +535,7 @@ const Dashboard: React.FC = () => {
         tasksRes,
         ptoBalancesRes,
         companyHolidaysRes,
+        eventsRes,
         timeOffRequestsRes,
         timeOffBlocksRes,
       ] = await Promise.all([
@@ -525,6 +550,7 @@ const Dashboard: React.FC = () => {
         supabase.from('workforce_tasks').select('*').order('due_time'),
         supabase.from('workforce_pto_balances').select('*').order('updated_at', { ascending: false }),
         supabase.from('workforce_company_holidays').select('*').order('holiday_date'),
+        supabase.from('workforce_events').select('*').order('timestamp', { ascending: false }),
         supabase.from('workforce_time_off_requests').select('*').order('start_date'),
         supabase.from('workforce_time_off_blocks').select('*').order('start_date'),
       ]);
@@ -541,6 +567,7 @@ const Dashboard: React.FC = () => {
       setTasks((tasksRes.data as WorkforceTask[]) || []);
       setPtoBalances((ptoBalancesRes.data as WorkforcePtoBalance[]) || []);
       setCompanyHolidays((companyHolidaysRes.data as WorkforceCompanyHoliday[]) || []);
+      setEvents((eventsRes.data as WorkforceEvent[]) || []);
       setTimeOffRequests((timeOffRequestsRes.data as WorkforceTimeOffRequest[]) || []);
       setTimeOffBlocks((timeOffBlocksRes.data as WorkforceTimeOffBlock[]) || []);
       setCurrentUserName(teamMember?.name || userEmail || 'Manager');
@@ -727,6 +754,113 @@ const Dashboard: React.FC = () => {
     [tasks],
   );
 
+  const punchesByShiftId = useMemo(
+    () =>
+      punches.reduce((accumulator, punch) => {
+        if (!punch.shift_id) return accumulator;
+        if (!accumulator[punch.shift_id]) {
+          accumulator[punch.shift_id] = [];
+        }
+        accumulator[punch.shift_id].push(punch);
+        return accumulator;
+      }, {} as Record<string, WorkforcePunch[]>),
+    [punches],
+  );
+
+  const missedPunchDigest = useMemo(() => {
+    const digest: Array<{ id: string; code: string; message: string; level: 'warning' | 'critical'; sortKey: number }> = [];
+    const graceMs = 15 * MINUTE_MS;
+
+    shiftsToday.forEach((shift) => {
+      const startMs = new Date(shift.start_time).getTime();
+      const endMs = new Date(shift.end_time).getTime();
+      if (Number.isNaN(startMs) || Number.isNaN(endMs)) return;
+
+      const employeeName = employeeById[shift.employee_id]?.name || 'Unassigned';
+      const linkedPunches = (punchesByShiftId[shift.id] || []).slice().sort((a, b) => String(a.clock_in || '').localeCompare(String(b.clock_in || '')));
+      const hasAnyPunch = linkedPunches.length > 0;
+      const openPunch = linkedPunches.find((punch) => !punch.clock_out) || null;
+
+      if (!hasAnyPunch && clockNowMs > startMs + graceMs) {
+        const isCritical = clockNowMs > endMs + graceMs;
+        digest.push({
+          id: `missed-in-${shift.id}`,
+          code: isCritical ? 'NO_SHOW' : 'MISSED_CLOCK_IN',
+          message: `${employeeName} has no punch for ${formatSelectedScheduleWindow(shift.start_time, shift.end_time)}.`,
+          level: isCritical ? 'critical' : 'warning',
+          sortKey: startMs,
+        });
+      }
+
+      if (openPunch && clockNowMs > endMs + graceMs) {
+        digest.push({
+          id: `missed-out-${openPunch.id}`,
+          code: 'MISSED_CLOCK_OUT',
+          message: `${employeeName} is still clocked in after scheduled end ${formatTimeOnly(shift.end_time)}.`,
+          level: 'warning',
+          sortKey: endMs,
+        });
+      }
+    });
+
+    return digest
+      .sort((a, b) => {
+        if (a.level !== b.level) return a.level === 'critical' ? -1 : 1;
+        return b.sortKey - a.sortKey;
+      })
+      .slice(0, 8);
+  }, [clockNowMs, employeeById, formatSelectedScheduleWindow, punchesByShiftId, shiftsToday]);
+
+  const myPtoNotifications = useMemo(() => {
+    if (!myEmployee) return [];
+    const myRequestIds = new Set(
+      timeOffRequests
+        .filter((request) => request.employee_id === myEmployee.id)
+        .map((request) => String(request.id)),
+    );
+
+    const notifications = events
+      .filter((event) => String(event.subject_type || '') === 'time_off_request')
+      .map((event) => {
+        const metadata = parseEventMetadata(event.metadata_json);
+        const metadataEmployeeId = String(metadata.employee_id || '');
+        const belongsToMe =
+          metadataEmployeeId === myEmployee.id || myRequestIds.has(String(event.subject_id || ''));
+        if (!belongsToMe) return null;
+
+        const eventType = String(event.event_type || '');
+        const status = normalizeTimeOffStatus(metadata.status);
+        let message = '';
+        if (eventType === 'TIME_OFF_REQUEST_SUBMITTED') {
+          message = 'Request submitted and pending supervisor review.';
+        } else if (eventType === 'TIME_OFF_REQUEST_STATUS_UPDATED') {
+          message =
+            status === 'approved'
+              ? 'Your request was approved.'
+              : status === 'denied'
+                ? 'Your request was denied.'
+                : 'Your request is pending review.';
+        } else if (eventType === 'TIME_OFF_REQUEST_EDITED_PENDING') {
+          message = 'Edited request was reset to pending for supervisor review.';
+        } else if (eventType === 'TIME_OFF_REQUEST_DELETED') {
+          message = 'Request was deleted.';
+        } else {
+          return null;
+        }
+
+        return {
+          id: event.id,
+          message,
+          timestamp: event.timestamp,
+        };
+      })
+      .filter((entry): entry is { id: string; message: string; timestamp: string } => Boolean(entry))
+      .sort((a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || '')))
+      .slice(0, 6);
+
+    return notifications;
+  }, [events, myEmployee, timeOffRequests]);
+
   const visibleTaskGroups = useMemo(() => {
     const grouped: Record<string, WorkforceTask[]> = {};
 
@@ -776,10 +910,17 @@ const Dashboard: React.FC = () => {
     return sortedGroups;
   }, [employeeById, tasks]);
 
-  const myEmployee = useMemo(
-    () => employees.find((employee) => String(employee.user_id || '') === currentUserId) || null,
-    [currentUserId, employees],
-  );
+  const myEmployee = useMemo(() => {
+    const normalizedEmail = currentUserEmail.trim().toLowerCase();
+    return (
+      employees.find((employee) => {
+        const employeeUserId = String(employee.user_id || '');
+        if (employeeUserId && employeeUserId === currentUserId) return true;
+        if (!normalizedEmail) return false;
+        return String(employee.email || '').trim().toLowerCase() === normalizedEmail;
+      }) || null
+    );
+  }, [currentUserEmail, currentUserId, employees]);
 
   const selectedUsTimeZoneLabel = useMemo(
     () =>
@@ -1108,6 +1249,32 @@ const Dashboard: React.FC = () => {
     await loadDashboardData(currentUserId, currentUserEmail);
   }, [currentUserEmail, currentUserId, loadDashboardData]);
 
+  const createWorkforceEvent = useCallback(
+    async (
+      eventType: string,
+      subjectType: string,
+      subjectId: string,
+      metadata: Record<string, unknown> = {},
+    ) => {
+      const { error } = await supabase.from('workforce_events').insert([
+        {
+          event_type: eventType,
+          actor_id: currentUserId || null,
+          subject_type: subjectType,
+          subject_id: subjectId,
+          location_id: 'wf_loc_main',
+          timestamp: new Date().toISOString(),
+          metadata_json: metadata,
+          correlation_id: `corr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        },
+      ]);
+      if (error) {
+        throw new Error(error.message || 'Failed to write workforce event');
+      }
+    },
+    [currentUserId],
+  );
+
   useEffect(() => {
     if (!capabilities.canManageSchedule) return;
     if (!tasks.length) return;
@@ -1432,11 +1599,13 @@ const Dashboard: React.FC = () => {
     setSavingAction(true);
     try {
       if (editingPtoRequestId) {
+        const previousStatus = normalizeTimeOffStatus(existing?.status);
         const { error } = await supabase
           .from('workforce_time_off_requests')
           .update({
             ...payload,
             status: 'pending',
+            updated_at: new Date().toISOString(),
           })
           .eq('id', editingPtoRequestId)
           .eq('employee_id', myEmployee.id);
@@ -1445,15 +1614,36 @@ const Dashboard: React.FC = () => {
         if (approvedPtoHoursBeingEdited > 0) {
           await adjustMyPtoBalance(-approvedPtoHoursBeingEdited);
         }
+
+        await createWorkforceEvent('TIME_OFF_REQUEST_EDITED_PENDING', 'time_off_request', editingPtoRequestId, {
+          employee_id: myEmployee.id,
+          previous_status: previousStatus,
+          status: 'pending',
+          request_type: requestType,
+          start_date: ptoRequestDraft.start_date,
+          end_date: ptoRequestDraft.end_date,
+          channels: ['in_app', 'email'],
+          recipient_email: myEmployee.email || currentUserEmail || null,
+        });
       } else {
-        const { error } = await supabase.from('workforce_time_off_requests').insert([
+        const { data: createdRequest, error } = await supabase.from('workforce_time_off_requests').insert([
           {
             employee_id: myEmployee.id,
             ...payload,
             status: 'pending',
           },
-        ]);
+        ]).select('*').single();
         if (error) throw error;
+
+        await createWorkforceEvent('TIME_OFF_REQUEST_SUBMITTED', 'time_off_request', String(createdRequest.id), {
+          employee_id: myEmployee.id,
+          status: 'pending',
+          request_type: requestType,
+          start_date: ptoRequestDraft.start_date,
+          end_date: ptoRequestDraft.end_date,
+          channels: ['in_app', 'email'],
+          recipient_email: myEmployee.email || currentUserEmail || null,
+        });
       }
 
       setEditingPtoRequestId('');
@@ -1496,6 +1686,16 @@ const Dashboard: React.FC = () => {
       if (editingPtoRequestId === request.id) {
         cancelEditMyTimeOffRequest();
       }
+
+      await createWorkforceEvent('TIME_OFF_REQUEST_DELETED', 'time_off_request', request.id, {
+        employee_id: myEmployee.id,
+        previous_status: normalizeTimeOffStatus(request.status),
+        request_type: request.request_type,
+        start_date: request.start_date,
+        end_date: request.end_date,
+        channels: ['in_app', 'email'],
+        recipient_email: myEmployee.email || currentUserEmail || null,
+      });
       await refreshAfterAction();
     } catch (error) {
       alert(`Failed to delete request: ${(error as Error).message}`);
@@ -1994,6 +2194,11 @@ const Dashboard: React.FC = () => {
               ) : (
                 <div className="text-base font-semibold text-gray-500">None Scheduled</div>
               )}
+            </div>
+            <div className="bg-white rounded-lg shadow p-4">
+              <div className="text-sm text-gray-500 uppercase tracking-wide">Missed Punches</div>
+              <div className="text-2xl font-display font-bold text-gray-900">{missedPunchDigest.length}</div>
+              <div className="text-xs text-gray-500 mt-1">Today digest</div>
             </div>
           </section>
         )}
@@ -2517,6 +2722,44 @@ const Dashboard: React.FC = () => {
             </div>
 
             <div className="bg-white rounded-lg shadow p-6">
+              <div className="mb-4 grid gap-3">
+                <div className="rounded-lg border border-gray-100 p-3">
+                  <div className="text-sm font-semibold text-gray-900">Missed Punch Digest</div>
+                  <div className="text-xs text-gray-500 mt-0.5">Today only</div>
+                  <div className="mt-2 space-y-1.5">
+                    {missedPunchDigest.slice(0, 5).map((entry) => (
+                      <div key={entry.id} className={`text-xs rounded-md px-2 py-1 ${entry.level === 'critical' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'}`}>
+                        <span className="font-semibold mr-1">{entry.code}:</span>
+                        {entry.message}
+                      </div>
+                    ))}
+                    {missedPunchDigest.length === 0 && (
+                      <div className="text-xs text-green-700 bg-green-50 rounded-md px-2 py-1">
+                        No missed punch exceptions detected.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-gray-100 p-3">
+                  <div className="text-sm font-semibold text-gray-900">PTO Notifications</div>
+                  <div className="text-xs text-gray-500 mt-0.5">Recent updates for your requests</div>
+                  <div className="mt-2 space-y-1.5">
+                    {myPtoNotifications.map((entry) => (
+                      <div key={entry.id} className="rounded-md bg-gray-50 px-2 py-1.5">
+                        <div className="text-xs text-gray-800">{entry.message}</div>
+                        <div className="text-[11px] text-gray-500 mt-0.5">{formatDateTime(entry.timestamp)}</div>
+                      </div>
+                    ))}
+                    {myPtoNotifications.length === 0 && (
+                      <div className="text-xs text-gray-500 bg-gray-50 rounded-md px-2 py-1">
+                        No PTO notifications yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-xl font-display font-bold text-gray-900 flex items-center gap-2">
                   <ClipboardList className="h-5 w-5 text-ocean-600" />

@@ -26,6 +26,10 @@ Use the handoff pack files in this folder:
 - Reuse existing auth/session in the host app.
 - Keep workforce data isolated to `workforce_*` + `team_members` tables.
 - Preserve existing app behavior outside these routes.
+- Assume users already authenticate with company email in the host app.
+- Do not introduce a separate workforce login flow.
+- Resolve workforce identity using `auth.uid()` first, then email fallback.
+- Skip payroll/W-2 export functionality for this 1099 implementation.
 
 ## Functional Requirements
 
@@ -53,14 +57,18 @@ Use the handoff pack files in this folder:
   - Request amount is derived from selected start/end dates (no manual amount input)
   - Request type options are only `PTO` and `Sick`
   - Selecting start date should auto-set end date to the same date initially
+  - Add PTO notifications feed for request status/activity events
 - Schedule behavior:
   - Approved time-off requests must be reflected in schedule displays (cell highlights/labels)
+  - If supervisor schedules over approved PTO, require explicit override reason
 - Task Board behavior:
   - Group tasks by assignee
   - Overdue open tasks = red
   - Completed/unverified = green
   - Verified tasks hidden
   - Verify checkbox only enabled for supervisor profile (`team_members.can_manage_schedule=true`)
+- Today dashboard alerts:
+  - Include missed punch digest for same-day no-show/missing punch coverage
 - Timezone UI:
   - Place above My Time Clock
   - Label `View by time zone`
@@ -69,6 +77,9 @@ Use the handoff pack files in this folder:
 - Team Members Time Off + PTO behavior:
   - Remove request-creation button/form
   - Add per-row status dropdown to set `pending`, `approved`, `denied`
+  - Require denial note when setting `denied`
+  - Persist optional status note on approval
+  - Show PTO audit trail entries (who changed status, when, note)
 - Team Members and Log Archive pages must be separate tabs/routes.
 
 ## Implementation Notes
