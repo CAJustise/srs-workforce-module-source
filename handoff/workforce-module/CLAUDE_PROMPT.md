@@ -42,6 +42,7 @@ Use the handoff pack files in this folder:
   - Worked duration must subtract unpaid break time
   - Break history must display start/end and total duration
   - Prevent ending a break before its configured minimum duration
+  - Current Shift card should show latest punch clock in/out and total worked hours
 - PTO request behavior:
   - Team member can submit own request from Today
   - Today PTO list must only show requests for the logged-in employee

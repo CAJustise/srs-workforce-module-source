@@ -59,6 +59,7 @@ For production/shared environments, set:
   - Break controls with minimum break duration enforcement (cannot end early)
   - Break history showing start/end and total break duration
   - Clock Status showing clock-in time plus worked duration (net of unpaid breaks)
+  - Current Shift card shows latest punch clock-in/out and total worked hours for comparison
   - Today’s Schedule by Department
   - PTO Requests card (request button + future request list with approval status)
   - Today PTO request list is scoped to the logged-in employee only

@@ -245,6 +245,23 @@ const formatDurationLabel = (minutesValue: number) => {
   return `${minutes}m`;
 };
 
+const getPunchWorkedMinutes = (punch: WorkforcePunch, punchBreaks: WorkforceBreak[], nowMs = Date.now()) => {
+  const clockInMs = new Date(punch.clock_in).getTime();
+  const clockOutMs = new Date(punch.clock_out || nowMs).getTime();
+  if (Number.isNaN(clockInMs) || Number.isNaN(clockOutMs) || clockOutMs <= clockInMs) return 0;
+
+  const grossMinutes = (clockOutMs - clockInMs) / MINUTE_MS;
+  const unpaidMinutes = punchBreaks.reduce((total, entry) => {
+    const durationMinutes = getBreakDurationMinutes(entry, nowMs);
+    return isBreakUnpaid(entry, durationMinutes) ? total + durationMinutes : total;
+  }, 0);
+
+  return Math.max(0, grossMinutes - unpaidMinutes);
+};
+
+const formatHoursTotalLabel = (minutesValue: number) =>
+  `${(Math.max(0, minutesValue) / 60).toFixed(2)}h`;
+
 const formatDateLabel = (value: string) => {
   const [yearRaw, monthRaw, dayRaw] = value.split('-');
   const year = Number(yearRaw);
@@ -953,6 +970,28 @@ const Dashboard: React.FC = () => {
         .map((punch) => punch.id),
     );
   }, [myEmployee, punches, todayKey]);
+
+  const myLatestPunchToday = useMemo(() => {
+    if (!myEmployee) return null;
+    return (
+      punches
+        .filter((punch) => punch.employee_id === myEmployee.id && toDateKey(punch.clock_in) === todayKey)
+        .sort((a, b) => String(b.clock_in || '').localeCompare(String(a.clock_in || '')))[0] || null
+    );
+  }, [myEmployee, punches, todayKey]);
+
+  const myLatestPunchBreaks = useMemo(() => {
+    if (!myLatestPunchToday) return [];
+    return breaks.filter((entry) => entry.punch_id === myLatestPunchToday.id);
+  }, [breaks, myLatestPunchToday]);
+
+  const myLatestPunchWorkedMinutes = useMemo(
+    () =>
+      myLatestPunchToday
+        ? getPunchWorkedMinutes(myLatestPunchToday, myLatestPunchBreaks, clockNowMs)
+        : 0,
+    [clockNowMs, myLatestPunchBreaks, myLatestPunchToday],
+  );
 
   const myCompletedBreaksToday = useMemo(
     () =>
@@ -1801,6 +1840,19 @@ const Dashboard: React.FC = () => {
                         ? formatSelectedScheduleWindow(myCurrentShift.start_time, myCurrentShift.end_time)
                         : 'No shift found'}
                     </div>
+                    {myLatestPunchToday && (
+                      <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
+                        <div className="text-xs text-gray-700">
+                          Clock In: {formatTimeOnly(myLatestPunchToday.clock_in) || '-'}
+                        </div>
+                        <div className="text-xs text-gray-700">
+                          Clock Out: {myLatestPunchToday.clock_out ? formatTimeOnly(myLatestPunchToday.clock_out) : '--'}
+                        </div>
+                        <div className="text-xs font-medium text-gray-900">
+                          Total Hours: {formatHoursTotalLabel(myLatestPunchWorkedMinutes)}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="rounded-lg border border-gray-100 p-3">
                     <div className="text-xs uppercase tracking-wide text-gray-500">Clock Status</div>
