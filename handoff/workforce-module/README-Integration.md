@@ -72,6 +72,7 @@ For production/shared environments, set:
   - Scheduler (week/day views)
   - Clock In Logs (30-day adjustments)
   - Time Off + PTO with request status review dropdown (`pending`, `approved`, `denied`)
+  - Supervisor request list ordered by status: `pending` first, then `approved`, then `denied`
   - Team member profiles + documents
   - Role library and role ordering
 - Log Archive:

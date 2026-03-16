@@ -53,6 +53,7 @@ Use this checklist as definition of done for implementation.
 4. Company holidays can be managed.
 5. Time Off + PTO uses a status dropdown (`pending`, `approved`, `denied`) for each request.
 6. Time Off + PTO no longer shows a request-creation button/form.
+7. Supervisor request list is ordered by status: `pending` first, then `approved`, then `denied`.
 
 ## E. Log Archive
 

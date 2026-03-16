@@ -399,6 +399,20 @@ const ptoHoursToDisplay = (hoursValue: number, unit: 'hours' | 'days') =>
 const ptoDisplayToHours = (displayValue: number, unit: 'hours' | 'days') =>
   unit === 'days' ? displayValue * PTO_HOURS_PER_DAY : displayValue;
 
+const normalizeTimeOffStatus = (value: unknown): 'pending' | 'approved' | 'denied' => {
+  const next = String(value || 'pending').trim().toLowerCase();
+  if (next === 'approved') return 'approved';
+  if (next === 'denied') return 'denied';
+  return 'pending';
+};
+
+const timeOffStatusRank = (value: unknown) => {
+  const normalized = normalizeTimeOffStatus(value);
+  if (normalized === 'pending') return 0;
+  if (normalized === 'approved') return 1;
+  return 2;
+};
+
 const toJsonText = (value: unknown) => {
   if (typeof value === 'string') return value;
   if (value === null || value === undefined) return '';
@@ -5138,7 +5152,19 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
               <tbody className="divide-y divide-gray-100">
                 {timeOffRequests
                   .slice()
-                  .sort((a, b) => `${a.start_date}${a.created_at || ''}`.localeCompare(`${b.start_date}${b.created_at || ''}`))
+                  .sort((a, b) => {
+                    const statusRankDelta = timeOffStatusRank(a.status) - timeOffStatusRank(b.status);
+                    if (statusRankDelta !== 0) return statusRankDelta;
+
+                    const dateDelta = `${a.start_date}${a.created_at || ''}`.localeCompare(
+                      `${b.start_date}${b.created_at || ''}`,
+                    );
+                    if (dateDelta !== 0) return dateDelta;
+
+                    return String(employeeById[a.employee_id]?.name || '').localeCompare(
+                      String(employeeById[b.employee_id]?.name || ''),
+                    );
+                  })
                   .map((request) => {
                     const unit = getEmployeePtoUnit(request.employee_id);
                     return (
@@ -5153,11 +5179,11 @@ const WorkforceManagement: React.FC<WorkforceManagementProps> = ({ archiveOnly =
                           {unit === 'days' ? 'd' : 'h'}
                         </td>
                         <td className="px-4 py-3 text-sm">
-                          <span className="capitalize text-gray-700">{request.status || 'pending'}</span>
+                          <span className="capitalize text-gray-700">{normalizeTimeOffStatus(request.status)}</span>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <select
-                            value={String(request.status || 'pending').toLowerCase()}
+                            value={normalizeTimeOffStatus(request.status)}
                             onChange={(event) =>
                               void updateTimeOffStatus(
                                 request,
