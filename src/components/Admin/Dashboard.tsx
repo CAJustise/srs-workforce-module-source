@@ -767,6 +767,81 @@ const Dashboard: React.FC = () => {
     [punches],
   );
 
+  const visibleTaskGroups = useMemo(() => {
+    const grouped: Record<string, WorkforceTask[]> = {};
+
+    tasks.forEach((task) => {
+      const status = normalizeTaskStatus(task.completion_status);
+      if (status === 'verified') return;
+      const key = String(task.assigned_employee_id || 'unassigned');
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(task);
+    });
+
+    const rankByStatus = (status: 'open' | 'completed' | 'verified') => {
+      if (status === 'open') return 0;
+      if (status === 'completed') return 1;
+      return 2;
+    };
+
+    const sortedGroups = Object.entries(grouped).map(([assigneeId, groupTasks]) => {
+      const sortedTasks = groupTasks.slice().sort((a, b) => {
+        const statusA = normalizeTaskStatus(a.completion_status);
+        const statusB = normalizeTaskStatus(b.completion_status);
+        const rankA = rankByStatus(statusA);
+        const rankB = rankByStatus(statusB);
+        if (rankA !== rankB) return rankA - rankB;
+
+        const dueA = a.due_time ? new Date(a.due_time).getTime() : Number.MAX_SAFE_INTEGER;
+        const dueB = b.due_time ? new Date(b.due_time).getTime() : Number.MAX_SAFE_INTEGER;
+        const safeDueA = Number.isNaN(dueA) ? Number.MAX_SAFE_INTEGER : dueA;
+        const safeDueB = Number.isNaN(dueB) ? Number.MAX_SAFE_INTEGER : dueB;
+        if (safeDueA !== safeDueB) return safeDueA - safeDueB;
+
+        return String(a.title || '').localeCompare(String(b.title || ''));
+      });
+
+      const assigneeName =
+        assigneeId === 'unassigned' ? 'Unassigned' : employeeById[assigneeId]?.name || 'Unknown Team Member';
+      return { assigneeId, assigneeName, tasks: sortedTasks };
+    });
+
+    sortedGroups.sort((a, b) => {
+      const aUnassigned = a.assigneeId === 'unassigned';
+      const bUnassigned = b.assigneeId === 'unassigned';
+      if (aUnassigned !== bUnassigned) return aUnassigned ? 1 : -1;
+      return a.assigneeName.localeCompare(b.assigneeName);
+    });
+
+    return sortedGroups;
+  }, [employeeById, tasks]);
+
+  const myEmployee = useMemo(() => {
+    const normalizedEmail = currentUserEmail.trim().toLowerCase();
+    return (
+      employees.find((employee) => {
+        const employeeUserId = String(employee.user_id || '');
+        if (employeeUserId && employeeUserId === currentUserId) return true;
+        if (!normalizedEmail) return false;
+        return String(employee.email || '').trim().toLowerCase() === normalizedEmail;
+      }) || null
+    );
+  }, [currentUserEmail, currentUserId, employees]);
+
+  const selectedUsTimeZoneLabel = useMemo(
+    () =>
+      US_SCHEDULE_TIME_ZONE_OPTIONS.find((option) => option.value === selectedUsTimeZone)?.label || 'Eastern (ET)',
+    [selectedUsTimeZone],
+  );
+
+  const formatSelectedScheduleWindow = useCallback(
+    (startTime: string, endTime: string) =>
+      scheduleTimeDisplayMode === 'local'
+        ? formatScheduleWindowForDisplay(startTime, endTime, 'local')
+        : formatScheduleWindowForTimeZone(startTime, endTime, selectedUsTimeZone),
+    [scheduleTimeDisplayMode, selectedUsTimeZone],
+  );
+
   const missedPunchDigest = useMemo(() => {
     const digest: Array<{ id: string; code: string; message: string; level: 'warning' | 'critical'; sortKey: number }> = [];
     const graceMs = 15 * MINUTE_MS;
@@ -777,7 +852,9 @@ const Dashboard: React.FC = () => {
       if (Number.isNaN(startMs) || Number.isNaN(endMs)) return;
 
       const employeeName = employeeById[shift.employee_id]?.name || 'Unassigned';
-      const linkedPunches = (punchesByShiftId[shift.id] || []).slice().sort((a, b) => String(a.clock_in || '').localeCompare(String(b.clock_in || '')));
+      const linkedPunches = (punchesByShiftId[shift.id] || [])
+        .slice()
+        .sort((a, b) => String(a.clock_in || '').localeCompare(String(b.clock_in || '')));
       const hasAnyPunch = linkedPunches.length > 0;
       const openPunch = linkedPunches.find((punch) => !punch.clock_out) || null;
 
@@ -860,81 +937,6 @@ const Dashboard: React.FC = () => {
 
     return notifications;
   }, [events, myEmployee, timeOffRequests]);
-
-  const visibleTaskGroups = useMemo(() => {
-    const grouped: Record<string, WorkforceTask[]> = {};
-
-    tasks.forEach((task) => {
-      const status = normalizeTaskStatus(task.completion_status);
-      if (status === 'verified') return;
-      const key = String(task.assigned_employee_id || 'unassigned');
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(task);
-    });
-
-    const rankByStatus = (status: 'open' | 'completed' | 'verified') => {
-      if (status === 'open') return 0;
-      if (status === 'completed') return 1;
-      return 2;
-    };
-
-    const sortedGroups = Object.entries(grouped).map(([assigneeId, groupTasks]) => {
-      const sortedTasks = groupTasks.slice().sort((a, b) => {
-        const statusA = normalizeTaskStatus(a.completion_status);
-        const statusB = normalizeTaskStatus(b.completion_status);
-        const rankA = rankByStatus(statusA);
-        const rankB = rankByStatus(statusB);
-        if (rankA !== rankB) return rankA - rankB;
-
-        const dueA = a.due_time ? new Date(a.due_time).getTime() : Number.MAX_SAFE_INTEGER;
-        const dueB = b.due_time ? new Date(b.due_time).getTime() : Number.MAX_SAFE_INTEGER;
-        const safeDueA = Number.isNaN(dueA) ? Number.MAX_SAFE_INTEGER : dueA;
-        const safeDueB = Number.isNaN(dueB) ? Number.MAX_SAFE_INTEGER : dueB;
-        if (safeDueA !== safeDueB) return safeDueA - safeDueB;
-
-        return String(a.title || '').localeCompare(String(b.title || ''));
-      });
-
-      const assigneeName =
-        assigneeId === 'unassigned' ? 'Unassigned' : employeeById[assigneeId]?.name || 'Unknown Team Member';
-      return { assigneeId, assigneeName, tasks: sortedTasks };
-    });
-
-    sortedGroups.sort((a, b) => {
-      const aUnassigned = a.assigneeId === 'unassigned';
-      const bUnassigned = b.assigneeId === 'unassigned';
-      if (aUnassigned !== bUnassigned) return aUnassigned ? 1 : -1;
-      return a.assigneeName.localeCompare(b.assigneeName);
-    });
-
-    return sortedGroups;
-  }, [employeeById, tasks]);
-
-  const myEmployee = useMemo(() => {
-    const normalizedEmail = currentUserEmail.trim().toLowerCase();
-    return (
-      employees.find((employee) => {
-        const employeeUserId = String(employee.user_id || '');
-        if (employeeUserId && employeeUserId === currentUserId) return true;
-        if (!normalizedEmail) return false;
-        return String(employee.email || '').trim().toLowerCase() === normalizedEmail;
-      }) || null
-    );
-  }, [currentUserEmail, currentUserId, employees]);
-
-  const selectedUsTimeZoneLabel = useMemo(
-    () =>
-      US_SCHEDULE_TIME_ZONE_OPTIONS.find((option) => option.value === selectedUsTimeZone)?.label || 'Eastern (ET)',
-    [selectedUsTimeZone],
-  );
-
-  const formatSelectedScheduleWindow = useCallback(
-    (startTime: string, endTime: string) =>
-      scheduleTimeDisplayMode === 'local'
-        ? formatScheduleWindowForDisplay(startTime, endTime, 'local')
-        : formatScheduleWindowForTimeZone(startTime, endTime, selectedUsTimeZone),
-    [scheduleTimeDisplayMode, selectedUsTimeZone],
-  );
 
   const myPtoBalance = useMemo(() => {
     if (!myEmployee) return null;
